@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pokemon';
 
 export async function POST(req: NextRequest) {
@@ -11,7 +10,8 @@ export async function POST(req: NextRequest) {
     const apiKey =
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
-      process.env.GOOGLE_GENAI_API_KEY;
+      process.env.GOOGLE_GENAI_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!apiKey) {
       console.error('CRITICAL: GEMINI_API_KEY is not defined in server environment variables.');
@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
 
       const prompt = `You are an elite sports card and TCG authenticator and OCR specialist.
 Inspect this image of a sports trading card from a pack opening video.
-Look closely at the card frame and text banners:
-1. "player": Read the EXACT name printed on the card banner (e.g. "Alexander Isak", "Warren Zaïre-Emery", "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Folarin Balogun", "Chancel Mbemba", "Lionel Messi", "Christian Pulisic").
+Look closely at the card frame, player jersey, and text banners:
+1. "player": Read the EXACT name printed on the card banner (e.g. "Alexander Isak", "Warren Zaïre-Emery", "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Folarin Balogun", "Chancel Mbemba", "Eduardo Camavinga", "Lionel Messi", "Christian Pulisic").
 2. "team": Country or team printed on the card (e.g. "Sweden", "France", "Colombia", "Portugal", "Switzerland", "DR Congo", "Argentina").
 3. "set": Collection name (e.g. "Panini Prizm FIFA World Cup", "Topps Chrome UCL").
 4. "finish": Parallel finish (e.g. "Silver Prizm", "Base Card", "Refractor", "Gold /10").
-5. "price": Realistic raw market price in USD (e.g. Alexander Isak Silver: 14.00, Cristiano Ronaldo Silver: 28.00, Warren Zaïre-Emery: 12.00, Yáser Asprilla: 6.50, Base card: 3.50).
+5. "price": Realistic raw market price in USD (e.g. Alexander Isak: 14.00, Cristiano Ronaldo: 28.00, Warren Zaïre-Emery: 12.00, Yáser Asprilla: 6.50, Base card: 3.50).
 
-Return ONLY valid JSON matching this schema:
+Return ONLY valid JSON:
 {
   "player": "string",
   "team": "string",
@@ -42,76 +42,91 @@ Return ONLY valid JSON matching this schema:
   "price": number
 }`;
 
-      // Initialize the official Google Gen AI SDK
-      const ai = new GoogleGenAI({ apiKey });
+      // Try Google's production models (gemini-2.0-flash and gemini-1.5-flash)
+      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
 
-      // Try Gemini 3.7 Flash, 3.6 Flash, 3.5 Flash, 2.5 Flash, 2.0 Flash
-      const models = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-
-      for (const modelName of models) {
+      for (const model of modelsToTry) {
         try {
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: [
-              {
-                inlineData: {
-                  mimeType: 'image/jpeg',
-                  data: cleanBase64
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { text: prompt },
+                    {
+                      inlineData: {
+                        mimeType: 'image/jpeg',
+                        data: cleanBase64
+                      }
+                    }
+                  ]
                 }
-              },
-              prompt
-            ],
-            config: {
-              responseMimeType: 'application/json',
-              temperature: 0.1
-            }
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+                maxOutputTokens: 400
+              }
+            })
           });
 
-          const rawText = response.text || '';
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            const playerName = parsed.player || parsed.name || 'Carta Coleccionable';
-            const setBrand = parsed.set || 'Panini Prizm Soccer';
-            const finish = parsed.finish || 'Base Card';
-            const rawPrice = typeof parsed.price === 'number' ? parsed.price : 10.00;
+          if (res.ok) {
+            const data = await res.json();
+            const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-            const searchQuery = encodeURIComponent(`${playerName} ${setBrand} ${finish}`);
+            if (textContent) {
+              const parsed = JSON.parse(textContent);
+              const playerName = parsed.player || parsed.name || 'Carta Coleccionable';
+              const setBrand = parsed.set || 'Panini Prizm Soccer';
+              const finish = parsed.finish || 'Base Card';
+              const rawPrice = typeof parsed.price === 'number' ? parsed.price : 10.00;
 
-            const cardResult: UniversalCard = {
-              id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              category: 'soccer',
-              name: `${playerName} ${finish && !finish.toLowerCase().includes('base') ? `(${finish})` : ''}`.trim(),
-              playerOrCharacter: playerName,
-              teamOrFranchise: parsed.team || '',
-              setName: setBrand,
-              number: `#${Math.floor(Math.random() * 200 + 1)}`,
-              rarity: finish.toLowerCase().includes('prizm') || finish.toLowerCase().includes('refractor') ? 'Silver Prizm' : 'Base Card',
-              finish: finish as CardFinish,
-              imageUrl: imageBase64,
-              hiresImageUrl: imageBase64,
-              videoSnapshotUrl: imageBase64,
-              detectedTimestamp: timestamp,
-              confidenceScore: 0.99,
-              isHit: rawPrice >= 10 || finish.toLowerCase().includes('prizm'),
-              isGodHit: rawPrice >= 60,
-              prices: {
-                raw: rawPrice,
-                psa9: Number((rawPrice * 1.35).toFixed(2)),
-                psa10: Number((rawPrice * 2.85).toFixed(2)),
-                marketTrend24h: Number((Math.random() * 5 + 1).toFixed(1)),
-                ebaySoldUrl: `https://www.ebay.com/sch/i.html?_nkw=${searchQuery}+sold`,
-                pricechartingUrl: `https://www.pricecharting.com/search-products?q=${encodeURIComponent(playerName)}`
-              }
-            };
+              const searchQuery = encodeURIComponent(`${playerName} ${setBrand} ${finish}`);
 
-            return NextResponse.json({
-              success: true,
-              card: cardResult,
-              source: `google-genai-${modelName}`
-            });
+              const cardResult: UniversalCard = {
+                id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                category: 'soccer',
+                name: `${playerName} ${finish && !finish.toLowerCase().includes('base') ? `(${finish})` : ''}`.trim(),
+                playerOrCharacter: playerName,
+                teamOrFranchise: parsed.team || '',
+                setName: setBrand,
+                number: `#${Math.floor(Math.random() * 200 + 1)}`,
+                rarity: finish.toLowerCase().includes('prizm') || finish.toLowerCase().includes('refractor') ? 'Silver Prizm' : 'Base Card',
+                finish: finish as CardFinish,
+                imageUrl: imageBase64,
+                hiresImageUrl: imageBase64,
+                videoSnapshotUrl: imageBase64,
+                detectedTimestamp: timestamp,
+                confidenceScore: 0.99,
+                isHit: rawPrice >= 10 || finish.toLowerCase().includes('prizm'),
+                isGodHit: rawPrice >= 60,
+                prices: {
+                  raw: rawPrice,
+                  psa9: Number((rawPrice * 1.35).toFixed(2)),
+                  psa10: Number((rawPrice * 2.85).toFixed(2)),
+                  marketTrend24h: Number((Math.random() * 5 + 1).toFixed(1)),
+                  ebaySoldUrl: `https://www.ebay.com/sch/i.html?_nkw=${searchQuery}+sold`,
+                  pricechartingUrl: `https://www.pricecharting.com/search-products?q=${encodeURIComponent(playerName)}`
+                }
+              };
+
+              return NextResponse.json({
+                success: true,
+                card: cardResult,
+                source: `gemini-api-${model}`
+              });
+            }
+          } else {
+            const errBody = await res.text();
+            console.error(`Gemini model ${model} failed HTTP ${res.status}:`, errBody);
           }
-        } catch (modelErr) {
-          console.warn(`Model ${modelName} attempt error:`, modelErr);
+        } catch (callErr) {
+          console.error(`Error calling ${model}:`, callErr);
         }
       }
     }
