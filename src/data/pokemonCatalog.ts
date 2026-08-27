@@ -3,6 +3,47 @@ import { UniversalCard, CardCategory } from '@/types/pokemon';
 export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confidenceScore' | 'isHit' | 'isGodHit'>[] = [
   // --- SOCCER / FÚTBOL ---
   {
+    id: 'soccer-balogun-scorers-club',
+    category: 'soccer',
+    name: 'Folarin Balogun (Scorers Club Prizm /49)',
+    playerOrCharacter: 'Folarin Balogun',
+    teamOrFranchise: 'USMNT / AS Monaco',
+    setName: '2024 Panini Prizm FIFA World Cup - Scorers Club',
+    number: '#SC-FB',
+    rarity: 'Numbered Parallel',
+    finish: 'Numbered /49',
+    serialNumberNumbered: '43/49',
+    imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=80',
+    studioStockImageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=90',
+    prices: {
+      raw: 45.00,
+      psa9: 65.00,
+      psa10: 160.00,
+      marketTrend24h: 7.2,
+      ebaySoldUrl: 'https://www.ebay.com/sch/i.html?_nkw=Folarin+Balogun+Prizm+Scorers+Club+sold',
+      pricechartingUrl: 'https://www.pricecharting.com/search-products?q=Folarin+Balogun+Prizm'
+    }
+  },
+  {
+    id: 'soccer-pulisic-silver',
+    category: 'soccer',
+    name: 'Christian Pulisic (Silver Prizm)',
+    playerOrCharacter: 'Christian Pulisic',
+    teamOrFranchise: 'USMNT / AC Milan',
+    setName: '2024 Panini Prizm Soccer',
+    number: '#125',
+    rarity: 'Silver Prizm',
+    finish: 'Silver Prizm',
+    imageUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&auto=format&fit=crop&q=80',
+    prices: {
+      raw: 24.00,
+      psa9: 35.00,
+      psa10: 72.00,
+      marketTrend24h: 3.5,
+      ebaySoldUrl: 'https://www.ebay.com/sch/i.html?_nkw=Christian+Pulisic+prizm+silver+sold'
+    }
+  },
+  {
     id: 'soccer-yamal-rc-1',
     category: 'soccer',
     name: 'Lamine Yamal (Rookie Card Refractor)',

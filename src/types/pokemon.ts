@@ -23,6 +23,7 @@ export type CardRarity =
   | 'Autograph Patch (RPA)'
   | 'Silver Prizm'
   | 'Gold Prizm /10'
+  | 'Scorers Club'
   | 'Kaboom!'
   | 'Downtown'
   | 'Vintage Holo';
@@ -34,6 +35,7 @@ export type CardFinish =
   | 'Refractor'
   | 'Silver Prizm'
   | 'Gold /10'
+  | 'Numbered /49'
   | '1-of-1'
   | 'On-Card Auto'
   | 'Relic Patch'
@@ -45,7 +47,7 @@ export interface CardPrices {
   psa9?: number;
   psa10?: number;
   bgs95?: number;
-  marketTrend24h?: number; // percentage change e.g. +4.5%
+  marketTrend24h?: number;
   tcgplayerUrl?: string;
   pricechartingUrl?: string;
   ebaySoldUrl?: string;
@@ -55,22 +57,26 @@ export interface CardPrices {
 export interface UniversalCard {
   id: string;
   category: CardCategory;
-  name: string; // e.g. "Lionel Messi", "Victor Wembanyama", "Charizard ex", "Monkey D. Luffy"
-  titleExtra?: string; // e.g. "Rookie Card", "Special Illustration Rare", "1/1 Gold Vinyl"
+  name: string;
+  titleExtra?: string;
   playerOrCharacter: string;
-  teamOrFranchise?: string; // e.g. "Inter Miami CF / Argentina", "San Antonio Spurs", "Los Angeles Dodgers"
+  teamOrFranchise?: string;
   setName: string;
   setSeries?: string;
   year?: string;
-  number: string; // e.g. "#199/165", "#136", "RC-01"
+  number: string;
   rarity: CardRarity;
   finish: CardFinish;
   isRookie?: boolean;
   isAutographed?: boolean;
   isMemorabiliaPatch?: boolean;
-  serialNumberNumbered?: string; // e.g. "01/10", "1/1"
-  imageUrl: string;
+  serialNumberNumbered?: string; // e.g. "43/49", "01/10", "1/1"
+  imageUrl: string; // Active cover photo (stock art or custom)
   hiresImageUrl?: string;
+  videoSnapshotUrl?: string; // Original frame snapshot captured from video
+  studioStockImageUrl?: string; // High-res internet promotional image
+  galleryImages?: string[]; // Multiple photos for card integrity (Front, Back, Corners, Surface)
+  notes?: string;
   prices: CardPrices;
   detectedTimestamp: number;
   confidenceScore: number;
@@ -85,7 +91,7 @@ export interface CollectionSet {
   id: string;
   category: CardCategory;
   name: string;
-  publisher: string; // "Panini", "Topps", "The Pokémon Company", "Bandai"
+  publisher: string;
   year: string;
   iconName?: string;
   bannerGradient: string;
@@ -100,6 +106,7 @@ export interface CollectionSet {
 
 export interface OpeningSession {
   id: string;
+  userId?: string;
   title: string;
   category: CardCategory;
   packCostUsd: number;
@@ -111,5 +118,15 @@ export interface OpeningSession {
   createdAt: string;
 }
 
-// Backward compatibility alias
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  tier: 'free' | 'pro' | 'vip';
+  avatarUrl?: string;
+  createdAt: string;
+  savedSessions: OpeningSession[];
+  portfolioCards: UniversalCard[];
+}
+
 export type PokemonCard = UniversalCard;

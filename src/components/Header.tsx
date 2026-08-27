@@ -1,14 +1,23 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Flame, Zap } from 'lucide-react';
+import { Sparkles, Flame, Zap, User, Bookmark, Save } from 'lucide-react';
+import { UserProfile } from '@/types/pokemon';
 
 interface HeaderProps {
+  user: UserProfile | null;
+  onOpenAuth: () => void;
+  onSaveCurrentSession: () => void;
+  hasUnsavedSession: boolean;
   totalCardsDetected: number;
   totalValue: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  user,
+  onOpenAuth,
+  onSaveCurrentSession,
+  hasUnsavedSession,
   totalCardsDetected,
   totalValue
 }) => {
@@ -21,6 +30,10 @@ export const Header: React.FC<HeaderProps> = ({
             <Flame className="h-3.5 w-3.5" /> LIVE MARKET TRENDS:
           </span>
           <span className="flex items-center gap-1.5 text-slate-300">
+            ⚽ Folarin Balogun Scorers Club /49 <span className="text-emerald-400 font-medium">\$45.00 (+7.2%)</span>
+          </span>
+          <span className="text-slate-600">•</span>
+          <span className="flex items-center gap-1.5 text-slate-300">
             ⚽ Lamine Yamal Topps RC <span className="text-emerald-400 font-medium">\$280.00 (+14.2%)</span>
           </span>
           <span className="text-slate-600">•</span>
@@ -30,10 +43,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-slate-600">•</span>
           <span className="flex items-center gap-1.5 text-slate-300">
             ⚡ Charizard ex 151 SIR <span className="text-emerald-400 font-medium">\$124.50 (+3.2%)</span>
-          </span>
-          <span className="text-slate-600">•</span>
-          <span className="flex items-center gap-1.5 text-slate-300">
-            ⚾ Shohei Ohtani 50/50 Auto <span className="text-emerald-400 font-medium">\$2,900.00 (+18.9%)</span>
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -71,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Live session pill + AI Status */}
+        {/* Live session pill + Action buttons */}
         <div className="flex items-center gap-3">
           {totalCardsDetected > 0 && (
             <div className="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 text-xs shadow-inner">
@@ -89,20 +98,39 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* VIP Club Button */}
-          <a
-            href="#subscription-plans"
-            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-rose-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:border-amber-400 hover:bg-amber-500/20 transition-all shadow-sm shadow-amber-500/5"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Planes VIP & Bounties</span>
-          </a>
+          {/* Save to Account Button if has cards */}
+          {hasUnsavedSession && (
+            <button
+              onClick={onSaveCurrentSession}
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all shadow-sm"
+            >
+              <Save className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Guardar en Mi Cuenta</span>
+            </button>
+          )}
 
-          {/* AI Status Badge */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400 shadow-sm shadow-emerald-500/10">
-            <Zap className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">AI Vision Activo</span>
-          </div>
+          {/* User Account / Login Button */}
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/90 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/60 hover:bg-slate-800 transition-all shadow-sm"
+          >
+            {user ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email}`}
+                  alt={user.name}
+                  className="h-4 w-4 rounded-full bg-amber-400/20"
+                />
+                <span className="hidden sm:inline truncate max-w-[100px]">{user.name}</span>
+              </>
+            ) : (
+              <>
+                <User className="h-3.5 w-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Mi Cuenta / Guardar</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </header>

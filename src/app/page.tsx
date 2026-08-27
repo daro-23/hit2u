@@ -13,9 +13,11 @@ import { CardFeed } from '@/components/CardFeed';
 import { RoiSummary } from '@/components/RoiSummary';
 import { CardDetailModal } from '@/components/CardDetailModal';
 import { ShareSummaryModal } from '@/components/ShareSummaryModal';
-import { OpeningSession, UniversalCard, CardCategory, CollectionSet } from '@/types/pokemon';
+import { AuthModal } from '@/components/AuthModal';
+import { OpeningSession, UniversalCard, CardCategory, CollectionSet, UserProfile } from '@/types/pokemon';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
-import { Sparkles, Flame, PlusCircle, Trophy, Zap } from 'lucide-react';
+import { UserAuthService } from '@/lib/userAuthService';
+import { Sparkles, Flame, PlusCircle, Bookmark, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<CardCategory>('all');
@@ -25,12 +27,19 @@ export default function Home() {
   const [inspectedCard, setInspectedCard] = useState<UniversalCard | null>(null);
   const [seekTime, setSeekTime] = useState<number | null>(null);
 
-  // Modals
+  // User Auth & State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const user = UserAuthService.getCurrentUser();
+    if (user) setCurrentUser(user);
+  }, []);
 
   const handleCategorySelect = (cat: CardCategory) => {
     setActiveCategory(cat);
-    // Switch to a relevant demo session if available
     const matchedDemo = DEMO_SESSIONS.find((s) => s.category === cat);
     if (matchedDemo) {
       handleSessionLoaded(matchedDemo, null);
@@ -38,7 +47,6 @@ export default function Home() {
   };
 
   const handleSelectCollection = (collection: CollectionSet) => {
-    // Switch to a matching demo or prepare a tailored session for that set
     const matched = DEMO_SESSIONS.find((s) => s.category === collection.category);
     if (matched) {
       handleSessionLoaded(matched, null);
@@ -58,6 +66,11 @@ export default function Home() {
         origin: { y: 0.6 }
       });
     }
+
+    // Auto-save if user is logged in
+    if (currentUser && newSession.cards.length > 0) {
+      UserAuthService.saveSession(newSession);
+    }
   };
 
   const handleCardDetected = (card: UniversalCard) => {
@@ -74,13 +87,19 @@ export default function Home() {
         });
       }
 
-      return {
+      const updatedSession = {
         ...prev,
         cards: updatedCards,
         totalCardsFound: updatedCards.length,
         totalValueUsd: totalVal,
         topHitCard: top
       };
+
+      if (currentUser) {
+        UserAuthService.saveSession(updatedSession);
+      }
+
+      return updatedSession;
     });
   };
 
@@ -93,18 +112,81 @@ export default function Home() {
     setInspectedCard(card);
   };
 
+  const handleUpdateCard = (updatedCard: UniversalCard) => {
+    setSession((prev) => {
+      const newCards = prev.cards.map((c) => (c.id === updatedCard.id ? updatedCard : c));
+      const newTop = prev.topHitCard?.id === updatedCard.id ? updatedCard : prev.topHitCard;
+      const newTotal = newCards.reduce((acc, c) => acc + c.prices.raw, 0);
+
+      const updatedSession = {
+        ...prev,
+        cards: newCards,
+        topHitCard: newTop,
+        totalValueUsd: newTotal
+      };
+
+      if (currentUser) {
+        UserAuthService.updateCard(updatedCard.id, updatedCard);
+      }
+
+      return updatedSession;
+    });
+
+    if (activeCard?.id === updatedCard.id) {
+      setActiveCard(updatedCard);
+    }
+    setInspectedCard(updatedCard);
+  };
+
+  const handleSaveCurrentSession = () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const updatedUser = UserAuthService.saveSession(session);
+    if (updatedUser) {
+      setCurrentUser(updatedUser);
+      setSaveToast('¡Apertura y fotos guardadas con éxito en tu cuenta!');
+      setTimeout(() => setSaveToast(null), 3500);
+    }
+  };
+
+  const handleLoadSavedSession = (savedSession: OpeningSession) => {
+    setSession(savedSession);
+    setVideoUrl(null);
+    setActiveCard(savedSession.topHitCard || savedSession.cards[0] || null);
+  };
+
   const totalPulledValue = session.cards.reduce((acc, c) => acc + c.prices.raw, 0);
 
   return (
     <div className="min-h-screen bg-[#070a0f] text-slate-100 selection:bg-amber-500 selection:text-black">
       {/* Header */}
       <Header
+        user={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onSaveCurrentSession={handleSaveCurrentSession}
+        hasUnsavedSession={session.cards.length > 0}
         totalCardsDetected={session.cards.length}
         totalValue={totalPulledValue}
       />
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-10">
+        {/* Save Toast Notification */}
+        {saveToast && (
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/80 px-4 py-3 text-xs font-bold text-emerald-300 shadow-xl backdrop-blur-md animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <span>{saveToast}</span>
+            </div>
+            <button onClick={() => setSaveToast(null)} className="text-emerald-400 hover:text-white">
+              Cerrar
+            </button>
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-slate-800 pb-8">
           <div>
@@ -119,7 +201,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="mt-3 text-sm sm:text-base text-slate-400 max-w-3xl">
-              Sube tus videos o box breaks de <strong className="text-slate-200">Fútbol (Panini/Topps), NBA, MLB, Pokémon TCG y One Piece</strong>. La IA detecta cada carta, números de serie (1/1, /10, /25), autógrafos y calcula su valor de mercado en tiempo real.
+              Sube tus videos o box breaks de <strong className="text-slate-200">Fútbol (Panini/Topps), NBA, MLB, Pokémon TCG y One Piece</strong>. La IA detecta cada carta, números de serie (1/1, /49, /10), autógrafos y calcula su valor de mercado en tiempo real.
             </p>
           </div>
 
@@ -247,6 +329,7 @@ export default function Home() {
       {inspectedCard && (
         <CardDetailModal
           card={inspectedCard}
+          onUpdateCard={handleUpdateCard}
           onClose={() => setInspectedCard(null)}
         />
       )}
@@ -255,6 +338,15 @@ export default function Home() {
         <ShareSummaryModal
           session={session}
           onClose={() => setIsShareModalOpen(false)}
+        />
+      )}
+
+      {isAuthModalOpen && (
+        <AuthModal
+          user={currentUser}
+          onUserChanged={setCurrentUser}
+          onLoadSavedSession={handleLoadSavedSession}
+          onClose={() => setIsAuthModalOpen(false)}
         />
       )}
     </div>
