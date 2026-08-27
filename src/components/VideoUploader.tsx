@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { UploadCloud, Video, Sparkles, Play, Camera, Film, Loader2, ArrowRight, Sliders, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { UploadCloud, Video, Sparkles, Play, Camera, Film, Loader2, ArrowRight, Sliders, CheckCircle2, AlertCircle, Key } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
@@ -9,12 +9,14 @@ interface VideoUploaderProps {
   onSessionLoaded: (session: OpeningSession, videoUrl: string | null) => void;
   onCardDetected: (card: UniversalCard) => void;
   apiKey?: string;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
   onSessionLoaded,
   onCardDetected,
-  apiKey = ''
+  apiKey = '',
+  onOpenApiKeyModal
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,7 +24,13 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [lastApiError, setLastApiError] = useState<string | null>(null);
+  const [localKey, setLocalKey] = useState<string>(apiKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem('hit2u_gemini_api_key');
+    if (savedKey) setLocalKey(savedKey);
+  }, [apiKey]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -51,7 +59,9 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setIsProcessing(true);
     setProgressPercent(2);
     setLastApiError(null);
-    setProcessingStatus('Cargando video y preparando fotogramas HD...');
+    setProcessingStatus('Cargando video en alta definición...');
+
+    const activeKey = localKey || apiKey || (typeof window !== 'undefined' ? localStorage.getItem('hit2u_gemini_api_key') || '' : '');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -63,12 +73,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       const duration = video.duration || 30;
 
       // Smart sampling step to balance accuracy and API speed
-      let step = 3.8;
-      if (scanSpeed === 'fast') step = 5.5;
-      if (scanSpeed === 'detailed') step = 2.4;
+      let step = 3.5;
+      if (scanSpeed === 'fast') step = 5.0;
+      if (scanSpeed === 'detailed') step = 2.2;
 
       const sampleTimes: number[] = [];
-      for (let t = 1.0; t < duration; t += step) {
+      for (let t = 1.0; t < duration - 0.5; t += step) {
         sampleTimes.push(Number(t.toFixed(1)));
       }
 
@@ -102,13 +112,16 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             video.onseeked = r;
           });
 
+          // Wait 160ms for video decoder to render crystal clear unblurred frame
+          await new Promise(r => setTimeout(r, 160));
+
           canvas.width = video.videoWidth || 720;
           canvas.height = video.videoHeight || 1280;
           ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const base64 = canvas.toDataURL('image/jpeg', 0.85);
+          const base64 = canvas.toDataURL('image/jpeg', 0.88);
 
           // Small delay to prevent API rate limits (15 RPM free tier)
-          await new Promise(r => setTimeout(r, 350));
+          await new Promise(r => setTimeout(r, 300));
 
           const response = await fetch('/api/analyze-frame', {
             method: 'POST',
@@ -116,7 +129,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             body: JSON.stringify({
               imageBase64: base64,
               timestamp: Number(time.toFixed(1)),
-              apiKey: apiKey
+              apiKey: activeKey
             })
           });
 
@@ -220,9 +233,15 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           )}
 
           {lastApiError && (
-            <div className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 p-2.5 text-xs text-amber-300 max-w-md">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
-              <span className="text-[11px]">{lastApiError}</span>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenApiKeyModal) onOpenApiKeyModal();
+              }}
+              className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/40 p-2.5 text-xs text-amber-300 max-w-md cursor-pointer hover:bg-amber-500/30 transition-all"
+            >
+              <Key className="h-4 w-4 shrink-0 text-amber-400" />
+              <span className="text-[11px] font-semibold">{lastApiError}</span>
             </div>
           )}
 
@@ -244,7 +263,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Rápido (~cada 5.5s)
+                Rápido (~cada 5.0s)
               </button>
               <button
                 type="button"
@@ -255,7 +274,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Estándar (~cada 3.8s • Recomendado)
+                Estándar (~cada 3.5s • Recomendado)
               </button>
               <button
                 type="button"
@@ -266,7 +285,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Detallado (~cada 2.4s)
+                Detallado (~cada 2.2s)
               </button>
             </div>
           )}

@@ -15,6 +15,7 @@ import { RoiSummary } from '@/components/RoiSummary';
 import { CardDetailModal } from '@/components/CardDetailModal';
 import { ShareSummaryModal } from '@/components/ShareSummaryModal';
 import { AuthModal } from '@/components/AuthModal';
+import { GeminiApiKeyModal } from '@/components/GeminiApiKeyModal';
 import { OpeningSession, UniversalCard, CardCategory, CollectionSet, UserProfile } from '@/types/pokemon';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { UserAuthService } from '@/lib/userAuthService';
@@ -29,9 +30,11 @@ export default function Home() {
   const [inspectedCard, setInspectedCard] = useState<UniversalCard | null>(null);
   const [seekTime, setSeekTime] = useState<number | null>(null);
 
-  // User Auth & State
+  // User Auth & Key Management
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
 
@@ -43,7 +46,19 @@ export default function Home() {
     if (savedTheme) {
       setTheme(savedTheme);
     }
+
+    const savedKey = localStorage.getItem('hit2u_gemini_api_key');
+    if (savedKey) {
+      setGeminiApiKey(savedKey);
+    }
   }, []);
+
+  const handleSaveApiKey = (key: string) => {
+    setGeminiApiKey(key);
+    localStorage.setItem('hit2u_gemini_api_key', key);
+    setSaveToast('¡Clave de Google Gemini AI guardada y conectada!');
+    setTimeout(() => setSaveToast(null), 3500);
+  };
 
   const handleToggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -179,13 +194,15 @@ export default function Home() {
         ? 'theme-dark bg-[#070a0f] text-slate-100 selection:bg-amber-500 selection:text-black'
         : 'theme-light bg-[#f8fafc] text-slate-900 selection:bg-amber-400 selection:text-black'
     }`}>
-      {/* Subtle SVG Relief Watermark Background (Cards, Slabs & Booster Boxes) */}
+      {/* Subtle SVG Relief Watermark Background */}
       <ThemeBackground theme={theme} />
 
       {/* Header */}
       <Header
         user={currentUser}
         theme={theme}
+        hasApiKey={Boolean(geminiApiKey)}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onToggleTheme={handleToggleTheme}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSaveCurrentSession={handleSaveCurrentSession}
@@ -277,6 +294,8 @@ export default function Home() {
         {/* Video Upload & Analysis Area */}
         <section className="space-y-6">
           <VideoUploader
+            apiKey={geminiApiKey}
+            onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
             onSessionLoaded={handleSessionLoaded}
             onCardDetected={handleCardDetected}
           />
@@ -387,6 +406,14 @@ export default function Home() {
           onUserChanged={setCurrentUser}
           onLoadSavedSession={handleLoadSavedSession}
           onClose={() => setIsAuthModalOpen(false)}
+        />
+      )}
+
+      {isApiKeyModalOpen && (
+        <GeminiApiKeyModal
+          apiKey={geminiApiKey}
+          onSaveApiKey={handleSaveApiKey}
+          onClose={() => setIsApiKeyModalOpen(false)}
         />
       )}
     </div>
