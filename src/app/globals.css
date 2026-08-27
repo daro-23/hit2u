@@ -1,21 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090c10;
-  --foreground: #f0f6fc;
-  --card-bg: #121824;
-  --accent-gold: #fbbf24;
-  --accent-blue: #38bdf8;
-  --accent-purple: #c084fc;
-  --accent-emerald: #34d399;
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Light Theme Variables */
+.theme-light {
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --header-bg: rgba(255, 255, 255, 0.88);
+  --slab-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.9));
+  --card-border: #e2e8f0;
+}
+
+/* Dark Theme Variables */
+.theme-dark {
+  --bg-main: #070a0f;
+  --bg-surface: #0c1017;
+  --bg-elevated: #111724;
+  --bg-card: #0d121c;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --border-subtle: #1e293b;
+  --border-strong: #334155;
+  --header-bg: rgba(9, 13, 20, 0.88);
+  --slab-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+  --card-border: #1e293b;
 }
 
 body {
-  background: radial-gradient(circle at 50% 0%, #172033 0%, #090d14 60%, #05070a 100%);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.theme-dark body {
+  background-color: #070a0f;
+  color: #f8fafc;
+}
+
+.theme-light body {
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 /* Custom Holographic / Foil Foil Shader Effects */
@@ -35,9 +70,9 @@ body {
     115deg,
     transparent 20%,
     rgba(255, 255, 255, 0.08) 35%,
-    rgba(255, 0, 128, 0.25) 45%,
-    rgba(0, 255, 255, 0.3) 50%,
-    rgba(255, 215, 0, 0.35) 55%,
+    rgba(255, 0, 128, 0.22) 45%,
+    rgba(0, 255, 255, 0.28) 50%,
+    rgba(255, 215, 0, 0.32) 55%,
     rgba(255, 255, 255, 0.1) 65%,
     transparent 80%
   );
@@ -52,10 +87,15 @@ body {
 
 /* PSA Slab Styled Container */
 .psa-slab-frame {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 25px rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.12);
   backdrop-filter: blur(16px);
+}
+
+.theme-light .psa-slab-frame {
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.12), 0 0 20px rgba(251, 191, 36, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.9));
 }
 
 /* God Hit Pulsing Gold Border */
@@ -80,15 +120,20 @@ body {
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
+.theme-dark ::-webkit-scrollbar-track {
   background: #0a0e17;
 }
 
-::-webkit-scrollbar-thumb {
+.theme-dark ::-webkit-scrollbar-thumb {
   background: #25334d;
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6;
+.theme-light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }

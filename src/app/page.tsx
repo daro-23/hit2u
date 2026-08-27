@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Header } from '@/components/Header';
+import { ThemeBackground } from '@/components/ThemeBackground';
 import { CategoryNav } from '@/components/CategoryNav';
 import { TrendingSetsSection } from '@/components/TrendingSetsSection';
 import { HallOfFameSection } from '@/components/HallOfFameSection';
@@ -17,9 +18,10 @@ import { AuthModal } from '@/components/AuthModal';
 import { OpeningSession, UniversalCard, CardCategory, CollectionSet, UserProfile } from '@/types/pokemon';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { UserAuthService } from '@/lib/userAuthService';
-import { Sparkles, Flame, PlusCircle, Bookmark, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Flame, PlusCircle, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [activeCategory, setActiveCategory] = useState<CardCategory>('all');
   const [session, setSession] = useState<OpeningSession>(DEMO_SESSIONS[0]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -36,7 +38,18 @@ export default function Home() {
   useEffect(() => {
     const user = UserAuthService.getCurrentUser();
     if (user) setCurrentUser(user);
+
+    const savedTheme = localStorage.getItem('hit2u_theme_mode') as 'dark' | 'light' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
   }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('hit2u_theme_mode', nextTheme);
+  };
 
   const handleCategorySelect = (cat: CardCategory) => {
     setActiveCategory(cat);
@@ -67,7 +80,6 @@ export default function Home() {
       });
     }
 
-    // Auto-save if user is logged in
     if (currentUser && newSession.cards.length > 0) {
       UserAuthService.saveSession(newSession);
     }
@@ -159,12 +171,22 @@ export default function Home() {
   };
 
   const totalPulledValue = session.cards.reduce((acc, c) => acc + c.prices.raw, 0);
+  const isDark = theme === 'dark';
 
   return (
-    <div className="min-h-screen bg-[#070a0f] text-slate-100 selection:bg-amber-500 selection:text-black">
+    <div className={`min-h-screen relative transition-colors duration-400 ${
+      isDark
+        ? 'theme-dark bg-[#070a0f] text-slate-100 selection:bg-amber-500 selection:text-black'
+        : 'theme-light bg-[#f8fafc] text-slate-900 selection:bg-amber-400 selection:text-black'
+    }`}>
+      {/* Subtle SVG Relief Watermark Background (Cards, Slabs & Booster Boxes) */}
+      <ThemeBackground theme={theme} />
+
       {/* Header */}
       <Header
         user={currentUser}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSaveCurrentSession={handleSaveCurrentSession}
         hasUnsavedSession={session.cards.length > 0}
@@ -173,10 +195,10 @@ export default function Home() {
       />
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-10">
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-10">
         {/* Save Toast Notification */}
         {saveToast && (
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/80 px-4 py-3 text-xs font-bold text-emerald-300 shadow-xl backdrop-blur-md animate-fadeIn">
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/85 px-4 py-3 text-xs font-bold text-emerald-300 shadow-xl backdrop-blur-md animate-fadeIn">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               <span>{saveToast}</span>
@@ -188,20 +210,30 @@ export default function Home() {
         )}
 
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-slate-800 pb-8">
+        <div className={`flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b pb-8 transition-colors ${
+          isDark ? 'border-slate-800' : 'border-slate-200'
+        }`}>
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-500/30 px-3.5 py-1 text-xs font-black text-amber-400 mb-3 shadow-lg shadow-amber-500/5">
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-xs font-black mb-3 shadow-sm ${
+              isDark
+                ? 'bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border-amber-500/30 text-amber-400'
+                : 'bg-amber-50 border-amber-300 text-amber-800'
+            }`}>
               <Sparkles className="h-3.5 w-3.5 animate-spin" />
               <span>AI VISION FOR SPORTS CARDS & TRADING CARDS</span>
             </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            <h1 className={`text-3xl sm:text-5xl font-black tracking-tight leading-tight ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>
               Apertura de Sobres con{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-rose-400 to-indigo-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-500">
                 Reconocimiento y Valuación IA
               </span>
             </h1>
-            <p className="mt-3 text-sm sm:text-base text-slate-400 max-w-3xl">
-              Sube tus videos o box breaks de <strong className="text-slate-200">Fútbol (Panini/Topps), NBA, MLB, Pokémon TCG y One Piece</strong>. La IA detecta cada carta, números de serie (1/1, /49, /10), autógrafos y calcula su valor de mercado en tiempo real.
+            <p className={`mt-3 text-sm sm:text-base max-w-3xl font-medium ${
+              isDark ? 'text-slate-400' : 'text-slate-600'
+            }`}>
+              Sube tus videos o box breaks de <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>Fútbol (Panini/Topps), NBA, MLB, Pokémon TCG y One Piece</strong>. La IA detecta cada carta, números de serie (1/1, /49, /10), autógrafos y calcula su valor de mercado en tiempo real.
             </p>
           </div>
 
@@ -222,9 +254,13 @@ export default function Home() {
                 });
                 setActiveCard(null);
               }}
-              className="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/90 px-4 py-3 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:border-slate-600 transition-all shadow-lg"
+              className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-xs font-bold transition-all shadow-md ${
+                isDark
+                  ? 'border-slate-700 bg-slate-800/90 text-slate-200 hover:bg-slate-700 hover:border-slate-600'
+                  : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400'
+              }`}
             >
-              <PlusCircle className="h-4 w-4 text-amber-400" />
+              <PlusCircle className="h-4 w-4 text-amber-500" />
               Nueva Apertura
             </button>
           </div>
@@ -252,11 +288,11 @@ export default function Home() {
           <div className="space-y-6 lg:col-span-7">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-amber-400" />
+                <h2 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <Flame className="h-5 w-5 text-amber-500" />
                   {session.title}
                 </h2>
-                <span className="text-xs text-slate-400">
+                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {session.cards.length} cartas analizadas
                 </span>
               </div>
@@ -314,12 +350,16 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-20 border-t border-slate-800/80 bg-black/40 py-10 text-center text-xs text-slate-500">
+      <footer className={`mt-20 border-t py-10 text-center text-xs transition-colors ${
+        isDark
+          ? 'border-slate-800/80 bg-black/50 text-slate-500'
+          : 'border-slate-200 bg-slate-100 text-slate-600'
+      }`}>
         <div className="mx-auto max-w-7xl px-4 space-y-3">
-          <p className="font-black text-slate-300 text-sm">
-            hit2u<span className="text-amber-400">.store</span> — Sports Cards & TCG AI Pack Valuation Suite
+          <p className={`font-black text-sm ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+            hit2u<span className="text-amber-500">.store</span> — Sports Cards & TCG AI Pack Valuation Suite
           </p>
-          <p className="text-[11px] text-slate-500 max-w-2xl mx-auto">
+          <p className={`text-[11px] max-w-2xl mx-auto ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
             Soporte para Fútbol (Panini Prizm, Topps Chrome UCL), NBA, MLB, NFL, Pokémon TCG y One Piece. Precios de mercado sincronizados con TCGPlayer, eBay Sold Listings y PriceCharting.
           </p>
         </div>
