@@ -62,7 +62,8 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
         title: file.name.replace(/\.[^/.]+$/, ''),
-        packCostUsd: 5.99,
+        category: 'all',
+        packCostUsd: 15.00,
         videoDurationSeconds: duration,
         totalCardsFound: 0,
         totalValueUsd: 0,
