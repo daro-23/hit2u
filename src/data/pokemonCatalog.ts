@@ -5,7 +5,7 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
   {
     id: 'soccer-yamal-rc-1',
     category: 'soccer',
-    name: 'Lamine Yamal (Rookie Card)',
+    name: 'Lamine Yamal (Rookie Card Refractor)',
     playerOrCharacter: 'Lamine Yamal',
     teamOrFranchise: 'FC Barcelona / España',
     setName: '2023-24 Topps Chrome UEFA Champions League',
@@ -13,8 +13,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     rarity: 'Rookie Card (RC)',
     finish: 'Refractor',
     isRookie: true,
-    imageUrl: 'https://images.pokemontcg.io/sv3pt5/173.png', // high quality placeholder art
-    hiresImageUrl: 'https://images.pokemontcg.io/sv3pt5/173_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 280.00,
       psa9: 390.00,
@@ -27,7 +27,7 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
   {
     id: 'soccer-messi-goldin',
     category: 'soccer',
-    name: 'Lionel Messi (World Cup Golden Ball)',
+    name: 'Lionel Messi (World Cup Golden Ball Gold /10)',
     playerOrCharacter: 'Lionel Messi',
     teamOrFranchise: 'Inter Miami CF / Argentina',
     setName: '2022 Panini Prizm World Cup Qatar',
@@ -35,8 +35,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     rarity: 'Gold Prizm /10',
     finish: 'Gold /10',
     serialNumberNumbered: '07/10',
-    imageUrl: 'https://images.pokemontcg.io/sv4pt5/234.png',
-    hiresImageUrl: 'https://images.pokemontcg.io/sv4pt5/234_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 3400.00,
       psa9: 4800.00,
@@ -50,7 +50,7 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
   {
     id: 'nba-wemby-prizm-rc',
     category: 'nba',
-    name: 'Victor Wembanyama (Silver Prizm RC)',
+    name: 'Victor Wembanyama (Silver Prizm RC #136)',
     playerOrCharacter: 'Victor Wembanyama',
     teamOrFranchise: 'San Antonio Spurs',
     setName: '2023-24 Panini Prizm Basketball',
@@ -58,8 +58,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     rarity: 'Silver Prizm',
     finish: 'Silver Prizm',
     isRookie: true,
-    imageUrl: 'https://images.pokemontcg.io/swsh7/215.png',
-    hiresImageUrl: 'https://images.pokemontcg.io/swsh7/215_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 420.00,
       psa9: 550.00,
@@ -78,8 +78,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     number: '#K-LBJ',
     rarity: 'Kaboom!',
     finish: 'Holo',
-    imageUrl: 'https://images.pokemontcg.io/base1/4.png',
-    hiresImageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 1850.00,
       psa9: 2400.00,
@@ -93,7 +93,7 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
   {
     id: 'mlb-ohtani-auto',
     category: 'mlb',
-    name: 'Shohei Ohtani (50/50 Historic Season Auto)',
+    name: 'Shohei Ohtani (50/50 Historic Auto 03/25)',
     playerOrCharacter: 'Shohei Ohtani',
     teamOrFranchise: 'Los Angeles Dodgers',
     setName: '2024 Topps Chrome Baseball',
@@ -102,8 +102,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     finish: 'On-Card Auto',
     isAutographed: true,
     serialNumberNumbered: '03/25',
-    imageUrl: 'https://images.pokemontcg.io/sv3pt5/200.png',
-    hiresImageUrl: 'https://images.pokemontcg.io/sv3pt5/200_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 2900.00,
       psa9: 3800.00,
@@ -195,8 +195,8 @@ export const UNIVERSAL_CATALOG: Omit<UniversalCard, 'detectedTimestamp' | 'confi
     number: 'OP05-119',
     rarity: 'Manga Rare',
     finish: 'Secret Art',
-    imageUrl: 'https://images.pokemontcg.io/sv4pt5/232.png',
-    hiresImageUrl: 'https://images.pokemontcg.io/sv4pt5/232_hires.png',
+    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
+    hiresImageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=90',
     prices: {
       raw: 3400.00,
       psa9: 4100.00,

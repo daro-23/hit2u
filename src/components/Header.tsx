@@ -89,10 +89,19 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* VIP Club Button */}
+          <a
+            href="#subscription-plans"
+            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-rose-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:border-amber-400 hover:bg-amber-500/20 transition-all shadow-sm shadow-amber-500/5"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Planes VIP & Bounties</span>
+          </a>
+
           {/* AI Status Badge */}
           <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400 shadow-sm shadow-emerald-500/10">
             <Zap className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">AI Vision Engine Activo</span>
+            <span className="hidden sm:inline">AI Vision Activo</span>
           </div>
         </div>
       </div>

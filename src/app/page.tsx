@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { CategoryNav } from '@/components/CategoryNav';
 import { TrendingSetsSection } from '@/components/TrendingSetsSection';
 import { HallOfFameSection } from '@/components/HallOfFameSection';
+import { SubscriptionSection } from '@/components/SubscriptionSection';
 import { VideoUploader } from '@/components/VideoUploader';
 import { VideoPlayerWithTimeline } from '@/components/VideoPlayerWithTimeline';
 import { CardFeed } from '@/components/CardFeed';
@@ -222,6 +223,11 @@ export default function Home() {
             activeCategory={activeCategory}
             onInspectCard={handleInspectCard}
           />
+        </section>
+
+        {/* Subscription & VIP Club Section */}
+        <section className="pt-6">
+          <SubscriptionSection />
         </section>
       </main>
 
