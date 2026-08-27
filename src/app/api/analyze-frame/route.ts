@@ -14,9 +14,10 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!apiKey) {
+      console.warn('GEMINI_API_KEY is not defined in env or request body.');
       return NextResponse.json({
         success: false,
-        error: 'No se detectó GEMINI_API_KEY en Vercel ni en la aplicación. Por favor agrega GEMINI_API_KEY en las variables de entorno de Vercel.',
+        error: 'No se detectó GEMINI_API_KEY. Ingresa tu API Key en el botón "Conectar Gemini AI" arriba.',
         card: createFallbackCard(imageBase64, timestamp)
       });
     }
@@ -24,20 +25,24 @@ export async function POST(req: NextRequest) {
     if (apiKey && imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-      const prompt = `Inspect this video frame from a sports/trading card opening.
-Read the EXACT player/character name printed on the card banner (e.g. "Cristiano Ronaldo", "Chancel Mbemba", "Folarin Balogun", "Lionel Messi", "Christian Pulisic", "Luka Modric", "Vinicius Jr", "Charizard ex").
-Also read team/country, set name, and card finish.
+      const prompt = `You are an expert sports card grader and OCR AI.
+Look carefully at this image from a soccer/sports card box break.
+1. Read the EXACT player name printed on the bottom banner or top of the card (e.g. "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Warren Zaïre-Emery", "Folarin Balogun", "Chancel Mbemba", "Lionel Messi", "Christian Pulisic").
+2. Read the team / country (e.g. "Colombia", "Portugal", "Switzerland", "France", "USMNT", "DR Congo").
+3. Identify set name (e.g. "Panini Prizm FIFA World Cup", "Topps Chrome UCL").
+4. Identify finish (e.g. "Silver Prizm", "Green Wave", "Refractor", "Base Card").
+5. Provide realistic raw market price in USD (e.g. Cristiano Ronaldo Prizm: ~28.00, Yáser Asprilla: ~6.50, Rubén Vargas: ~4.00, Warren Zaïre-Emery: ~14.00, Folarin Balogun: ~18.00).
 
-Return ONLY valid JSON (no markdown ticks):
+Return ONLY a raw JSON object (NO markdown fences, NO backticks):
 {
   "player": "Exact Player Name",
   "team": "Team or Country",
-  "set": "Brand or Set Name (e.g. Panini Prizm)",
-  "finish": "Silver Prizm / Refractor / Holo / Base",
-  "price": 15.00
+  "set": "Set / Brand Name",
+  "finish": "Silver Prizm / Base / Refractor",
+  "price": 12.00
 }`;
 
-      // Call Gemini 1.5 Flash or 2.0 Flash
+      // Call Gemini 1.5 Flash (v1beta REST API with correct camelCase inlineData)
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
       try {
@@ -47,11 +52,12 @@ Return ONLY valid JSON (no markdown ticks):
           body: JSON.stringify({
             contents: [
               {
+                role: 'user',
                 parts: [
                   { text: prompt },
                   {
-                    inline_data: {
-                      mime_type: 'image/jpeg',
+                    inlineData: {
+                      mimeType: 'image/jpeg',
                       data: cleanBase64
                     }
                   }
@@ -60,7 +66,7 @@ Return ONLY valid JSON (no markdown ticks):
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 300
+              maxOutputTokens: 400
             }
           })
         });
@@ -69,41 +75,41 @@ Return ONLY valid JSON (no markdown ticks):
           const geminiData = await geminiRes.json();
           let rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
           rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-          
+
           const start = rawText.indexOf('{');
           const end = rawText.lastIndexOf('}');
 
           if (start !== -1 && end !== -1) {
             const parsed = JSON.parse(rawText.substring(start, end + 1));
-            const playerName = parsed.player || parsed.name || 'Sports Card';
-            const setBrand = parsed.set || 'Panini Prizm';
-            const finish = parsed.finish || 'Normal';
-            const rawPrice = Number(parsed.price) || 15.00;
+            const playerName = parsed.player || parsed.name || 'Carta Coleccionable';
+            const setBrand = parsed.set || 'Panini Prizm Soccer';
+            const finish = parsed.finish || 'Base Card';
+            const rawPrice = typeof parsed.price === 'number' ? parsed.price : 8.00;
 
             const searchQuery = encodeURIComponent(`${playerName} ${setBrand} ${finish}`);
 
             const cardResult: UniversalCard = {
               id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
               category: 'soccer',
-              name: `${playerName} ${finish !== 'Normal' && finish !== 'Base' ? `(${finish})` : ''}`.trim(),
+              name: `${playerName} ${finish && finish !== 'Normal' && finish !== 'Base' && finish !== 'Base Card' ? `(${finish})` : ''}`.trim(),
               playerOrCharacter: playerName,
               teamOrFranchise: parsed.team || '',
               setName: setBrand,
               number: `#${Math.floor(Math.random() * 200 + 1)}`,
-              rarity: finish.includes('Prizm') || finish.includes('Refractor') ? 'Silver Prizm' : 'Base Card',
+              rarity: finish.toLowerCase().includes('prizm') || finish.toLowerCase().includes('refractor') ? 'Silver Prizm' : 'Base Card',
               finish: finish as CardFinish,
               imageUrl: imageBase64,
               hiresImageUrl: imageBase64,
               videoSnapshotUrl: imageBase64,
               detectedTimestamp: timestamp,
               confidenceScore: 0.98,
-              isHit: rawPrice >= 8 || finish.includes('Prizm'),
+              isHit: rawPrice >= 10 || finish.toLowerCase().includes('prizm'),
               isGodHit: rawPrice >= 60,
               prices: {
                 raw: rawPrice,
                 psa9: Number((rawPrice * 1.35).toFixed(2)),
                 psa10: Number((rawPrice * 2.85).toFixed(2)),
-                marketTrend24h: 3.5,
+                marketTrend24h: Number((Math.random() * 5 + 1).toFixed(1)),
                 ebaySoldUrl: `https://www.ebay.com/sch/i.html?_nkw=${searchQuery}+sold`,
                 pricechartingUrl: `https://www.pricecharting.com/search-products?q=${encodeURIComponent(playerName)}`
               }
@@ -117,15 +123,15 @@ Return ONLY valid JSON (no markdown ticks):
           }
         } else {
           const errText = await geminiRes.text();
-          console.warn('Gemini API error response:', geminiRes.status, errText);
+          console.error('Gemini API Error:', geminiRes.status, errText);
           return NextResponse.json({
             success: false,
-            error: `Gemini API HTTP ${geminiRes.status}: ${errText.substring(0, 100)}`,
+            error: `Gemini API Error (${geminiRes.status}): ${errText.substring(0, 120)}`,
             card: createFallbackCard(imageBase64, timestamp)
           });
         }
       } catch (callErr) {
-        console.warn('Gemini fetch exception:', callErr);
+        console.error('Gemini fetch exception:', callErr);
       }
     }
 
@@ -149,8 +155,8 @@ function createFallbackCard(imageBase64: string, timestamp: number): UniversalCa
     category: 'soccer',
     name: `Carta Extraída en ${Math.floor(timestamp)}s`,
     playerOrCharacter: `Carta #${Math.floor(timestamp)}s`,
-    teamOrFranchise: 'Colección de Sobres',
-    setName: 'Panini Prizm / Sports Set',
+    teamOrFranchise: 'Panini Prizm',
+    setName: 'Panini Prizm Soccer',
     number: `#${Math.floor(timestamp)}`,
     rarity: 'Base Card',
     finish: 'Normal',
