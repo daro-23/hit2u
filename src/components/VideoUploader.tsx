@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, Video, Sparkles, Play, Camera, Film, Loader2, ArrowRight } from 'lucide-react';
+import { UploadCloud, Video, Sparkles, Play, Camera, Film, Loader2, ArrowRight, Sliders, CheckCircle2 } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
-import { OpeningSession, PokemonCard } from '@/types/pokemon';
+import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
 interface VideoUploaderProps {
   onSessionLoaded: (session: OpeningSession, videoUrl: string | null) => void;
-  onCardDetected: (card: PokemonCard) => void;
+  onCardDetected: (card: UniversalCard) => void;
   apiKey?: string;
 }
 
@@ -18,7 +18,9 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [scanSpeed, setScanSpeed] = useState<'fast' | 'standard' | 'detailed'>('standard');
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -46,7 +48,8 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
   const processUserVideo = async (file: File) => {
     setIsProcessing(true);
-    setProcessingStatus('Cargando y analizando video...');
+    setProgressPercent(2);
+    setProcessingStatus('Cargando video y preparando muestreo inteligente de cartas...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -56,14 +59,25 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
     video.onloadedmetadata = async () => {
       const duration = video.duration || 30;
-      setProcessingStatus(`Extrayendo fotogramas (${Math.round(duration)}s de video)...`);
 
-      // Mock or real processing session
+      // Determine step in seconds based on scan speed
+      // standard = sample every 2.8s (a 94s video will analyze ~33 frames!)
+      let step = 2.8;
+      if (scanSpeed === 'fast') step = 4.5;
+      if (scanSpeed === 'detailed') step = 1.8;
+
+      const sampleTimes: number[] = [];
+      for (let t = 1.5; t < duration - 0.5; t += step) {
+        sampleTimes.push(Number(t.toFixed(1)));
+      }
+
+      setProcessingStatus(`Extrayendo y analizando ~${sampleTimes.length} cartas a lo largo de ${Math.round(duration)}s de video...`);
+
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
         title: file.name.replace(/\.[^/.]+$/, ''),
         category: 'all',
-        packCostUsd: 15.00,
+        packCostUsd: 25.00,
         videoDurationSeconds: duration,
         totalCardsFound: 0,
         totalValueUsd: 0,
@@ -71,27 +85,27 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         createdAt: new Date().toISOString()
       };
 
-      // Extract sample frames across the video duration
-      const sampleTimes = [duration * 0.15, duration * 0.4, duration * 0.65, duration * 0.85];
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-
-      const foundCards: PokemonCard[] = [];
+      const foundCards: UniversalCard[] = [];
+      let lastDetectedName = '';
 
       for (let i = 0; i < sampleTimes.length; i++) {
         const time = sampleTimes[i];
-        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} con IA...`);
+        const currentPct = Math.round(((i + 1) / sampleTimes.length) * 100);
+        setProgressPercent(currentPct);
+        setProcessingStatus(`Analizando fotograma ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s) — ${foundCards.length} cartas detectadas...`);
 
         try {
           video.currentTime = time;
-          await new Promise(r => {
+          await new Promise((r) => {
             video.onseeked = r;
           });
 
           canvas.width = video.videoWidth || 640;
           canvas.height = video.videoHeight || 360;
           ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const base64 = canvas.toDataURL('image/jpeg', 0.8);
+          const base64 = canvas.toDataURL('image/jpeg', 0.82);
 
           const response = await fetch('/api/analyze-frame', {
             method: 'POST',
@@ -106,12 +120,18 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           if (response.ok) {
             const data = await response.json();
             if (data.card) {
-              foundCards.push(data.card);
-              onCardDetected(data.card);
+              const card = data.card as UniversalCard;
+              // Card deduplication: avoid adding identical card if held for consecutive seconds
+              const normalizedName = (card.playerOrCharacter || card.name).toLowerCase().trim();
+              if (normalizedName !== lastDetectedName || i === 0) {
+                lastDetectedName = normalizedName;
+                foundCards.push(card);
+                onCardDetected(card);
+              }
             }
           }
         } catch (err) {
-          console.error('Frame error:', err);
+          console.error('Error processing frame at time', time, err);
         }
       }
 
@@ -121,6 +141,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       newSession.topHitCard = [...foundCards].sort((a, b) => b.prices.raw - a.prices.raw)[0];
 
       setIsProcessing(false);
+      setProgressPercent(100);
       onSessionLoaded(newSession, videoUrl);
     };
   };
@@ -132,7 +153,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setTimeout(() => {
       setIsProcessing(false);
       onSessionLoaded(demo, null);
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -143,7 +164,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !isProcessing && fileInputRef.current?.click()}
-        className={`relative group cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
+        className={`relative group cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed p-8 text-center transition-all ${
           isDragging
             ? 'border-amber-400 bg-amber-500/10 scale-[1.01]'
             : 'border-slate-700 bg-slate-900/40 hover:border-amber-400/60 hover:bg-slate-900/80'
@@ -170,23 +191,77 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             )}
           </div>
 
-          <div>
+          <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? processingStatus : 'Sube tu video de apertura de cartas (Pack Opening)'}
+              {isProcessing ? 'Procesando Video con IA Multimodal...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
-            <p className="mt-1 text-sm text-slate-400 max-w-md mx-auto">
-              Arrastra y suelta tu archivo de video (MP4, MOV) o haz clic para seleccionarlo. La IA detectará automáticamente cada carta y consultará su valor en el mercado.
+            <p className="text-sm text-slate-400 max-w-lg mx-auto">
+              {isProcessing
+                ? processingStatus
+                : 'Arrastra y suelta tu video (MP4, MOV). La IA analizará cada carta que muestres a la cámara, leyendo jugadores, autógrafos, parches y precios de mercado en vivo.'}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 px-3 py-1 text-xs text-slate-300 border border-slate-700">
-              <Film className="h-3.5 w-3.5 text-blue-400" /> MP4 / MOV / WEBM
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 px-3 py-1 text-xs text-slate-300 border border-slate-700">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" /> Detección Automática de HITS
-            </span>
-          </div>
+          {/* Progress bar when processing */}
+          {isProcessing && (
+            <div className="w-full max-w-md space-y-1.5 pt-2">
+              <div className="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-500 transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                <span>{processingStatus}</span>
+                <span className="text-amber-400">{progressPercent}%</span>
+              </div>
+            </div>
+          )}
+
+          {/* Scan frequency options */}
+          {!isProcessing && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="flex flex-wrap items-center justify-center gap-2 pt-2"
+            >
+              <span className="text-xs font-semibold text-slate-400 mr-1 flex items-center gap-1">
+                <Sliders className="h-3 w-3 text-amber-400" /> Densidad de Escaneo:
+              </span>
+              <button
+                type="button"
+                onClick={() => setScanSpeed('fast')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                  scanSpeed === 'fast'
+                    ? 'bg-amber-500 text-black font-bold'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Rápido (~cada 4s)
+              </button>
+              <button
+                type="button"
+                onClick={() => setScanSpeed('standard')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                  scanSpeed === 'standard'
+                    ? 'bg-amber-500 text-black font-bold shadow-md'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Estándar (~cada 2.8s • Recomendado)
+              </button>
+              <button
+                type="button"
+                onClick={() => setScanSpeed('detailed')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                  scanSpeed === 'detailed'
+                    ? 'bg-amber-500 text-black font-bold'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                Detallado (~cada 1.8s • Paquetes Rápidos)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -200,31 +275,31 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           <span className="text-[11px] text-slate-500">Sin necesidad de subir archivos</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {DEMO_SESSIONS.map((demo) => (
             <button
               key={demo.id}
               onClick={() => loadDemo(demo)}
-              className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-left transition-all hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-lg hover:shadow-amber-500/5"
+              className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-left transition-all hover:border-amber-500/50 hover:bg-slate-800/80 hover:shadow-lg hover:shadow-amber-500/5"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-black transition-all">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-black transition-all">
                   <Play className="h-5 w-5 ml-0.5" />
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white group-hover:text-amber-300 transition-colors">
+                <div className="min-w-0">
+                  <h4 className="truncate text-xs font-bold text-white group-hover:text-amber-300 transition-colors">
                     {demo.title}
                   </h4>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                    <span>{demo.cards.length} cartas detectadas</span>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                    <span>{demo.cards.length} cartas</span>
                     <span>•</span>
-                    <span className="font-medium text-emerald-400">
-                      Valor: \${demo.totalValueUsd.toFixed(2)} USD
+                    <span className="font-bold text-emerald-400">
+                      \${demo.totalValueUsd.toFixed(2)} USD
                     </span>
                   </div>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
             </button>
           ))}
         </div>

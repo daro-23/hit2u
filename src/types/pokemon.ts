@@ -12,6 +12,7 @@ export type CardRarity =
   | 'Common'
   | 'Uncommon'
   | 'Rare'
+  | 'Base Card'
   | 'Ultra Rare'
   | 'Illustration Rare'
   | 'Special Illustration Rare'
