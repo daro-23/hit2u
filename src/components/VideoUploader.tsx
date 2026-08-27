@@ -47,7 +47,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const processUserVideo = async (file: File) => {
     setIsProcessing(true);
     setProgressPercent(2);
-    setProcessingStatus('Cargando video y extrayendo fotogramas con Gemini 3.7 Flash...');
+    setProcessingStatus('Cargando video y preparando escaneo IA...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -59,16 +59,16 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       const duration = video.duration || 30;
 
       // Smart sampling step
-      let step = 3.5;
-      if (scanSpeed === 'fast') step = 5.0;
-      if (scanSpeed === 'detailed') step = 2.2;
+      let step = 3.6;
+      if (scanSpeed === 'fast') step = 5.2;
+      if (scanSpeed === 'detailed') step = 2.4;
 
       const sampleTimes: number[] = [];
       for (let t = 1.0; t < duration - 0.5; t += step) {
         sampleTimes.push(Number(t.toFixed(1)));
       }
 
-      setProcessingStatus(`Analizando ${sampleTimes.length} cartas con Gemini 3.7 Flash...`);
+      setProcessingStatus(`Analizando ${sampleTimes.length} cartas a lo largo del video...`);
 
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
@@ -90,7 +90,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         const time = sampleTimes[i];
         const currentPct = Math.round(((i + 1) / sampleTimes.length) * 100);
         setProgressPercent(currentPct);
-        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s) — ${foundCards.length} cartas detectadas...`);
+        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s)...`);
 
         try {
           video.currentTime = time;
@@ -98,16 +98,19 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             video.onseeked = r;
           });
 
-          // Wait 160ms for video decoder to render full sharp frame
-          await new Promise(r => setTimeout(r, 160));
+          // Wait 150ms for decoder
+          await new Promise(r => setTimeout(r, 150));
 
-          canvas.width = video.videoWidth || 720;
-          canvas.height = video.videoHeight || 1280;
-          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const base64 = canvas.toDataURL('image/jpeg', 0.88);
+          // Optimize frame resolution for fast OCR processing (max width 600px)
+          const origW = video.videoWidth || 640;
+          const origH = video.videoHeight || 1138;
+          const targetW = 540;
+          const targetH = Math.round((origH / origW) * targetW);
 
-          // Small delay to prevent API rate limits
-          await new Promise(r => setTimeout(r, 300));
+          canvas.width = targetW;
+          canvas.height = targetH;
+          ctx?.drawImage(video, 0, 0, targetW, targetH);
+          const base64 = canvas.toDataURL('image/jpeg', 0.80);
 
           const response = await fetch('/api/analyze-frame', {
             method: 'POST',
@@ -120,6 +123,9 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           if (response.ok) {
             const data = await response.json();
+            if (data.debugLogs) {
+              console.log(`[Frame ${i + 1} @ ${time}s]`, data.debugLogs);
+            }
             if (data.card) {
               const card = data.card as UniversalCard;
               foundCards.push(card);
@@ -189,7 +195,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? 'Analizando Cartas del Video con Gemini 3.7 Flash...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
+              {isProcessing ? 'Analizando Cartas del Video con IA Multimodal...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
             <p className="text-sm text-slate-400 max-w-lg mx-auto">
               {isProcessing
@@ -232,7 +238,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Rápido (~cada 5.0s)
+                Rápido (~cada 5.2s)
               </button>
               <button
                 type="button"
@@ -243,7 +249,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Estándar (~cada 3.5s • Recomendado)
+                Estándar (~cada 3.6s • Recomendado)
               </button>
               <button
                 type="button"
@@ -254,7 +260,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Detallado (~cada 2.2s)
+                Detallado (~cada 2.4s)
               </button>
             </div>
           )}
