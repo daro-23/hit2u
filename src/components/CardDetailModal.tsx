@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { X, ExternalLink, Award, Flame, Shield, TrendingUp, Sparkles, DollarSign, Camera, Image as ImageIcon, Plus, Check, Edit2, Save, Trash2 } from 'lucide-react';
+import { X, ExternalLink, Award, Flame, Shield, TrendingUp, Sparkles, DollarSign, Camera, Image as ImageIcon, Plus, Check, Edit2, Save, Trash2, Search, Link2 } from 'lucide-react';
 import { UniversalCard } from '@/types/pokemon';
 
 interface CardDetailModalProps {
@@ -13,8 +13,8 @@ interface CardDetailModalProps {
 export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdateCard, onClose }) => {
   const [currentCard, setCurrentCard] = useState<UniversalCard | null>(card);
   const [activeTab, setActiveTab] = useState<'valuation' | 'integrity' | 'edit'>('valuation');
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
 
   // Editable fields
   const [editName, setEditName] = useState(card?.name || '');
@@ -36,6 +36,7 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
     const updated: UniversalCard = {
       ...currentCard,
       name: editName,
+      playerOrCharacter: editName,
       setName: editSet,
       serialNumberNumbered: editSerial || undefined,
       notes: editNotes,
@@ -43,11 +44,12 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
         ...currentCard.prices,
         raw: editPrice,
         psa9: Number((editPrice * 1.35).toFixed(2)),
-        psa10: Number((editPrice * 2.85).toFixed(2))
+        psa10: Number((editPrice * 2.85).toFixed(2)),
+        ebaySoldUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editName + ' ' + editSet + ' sold')}`,
+        pricechartingUrl: `https://www.pricecharting.com/search-products?q=${encodeURIComponent(editName)}`
       }
     };
     setCurrentCard(updated);
-    setIsEditing(false);
     if (onUpdateCard) onUpdateCard(updated);
   };
 
@@ -67,6 +69,21 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
         }
       };
       reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleApplyCustomUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (customUrl.trim()) {
+      const updated: UniversalCard = {
+        ...currentCard,
+        imageUrl: customUrl.trim(),
+        hiresImageUrl: customUrl.trim()
+      };
+      setCurrentCard(updated);
+      setCustomUrl('');
+      setShowUrlInput(false);
+      if (onUpdateCard) onUpdateCard(updated);
     }
   };
 
@@ -107,6 +124,8 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
     setCurrentCard(updated);
     if (onUpdateCard) onUpdateCard(updated);
   };
+
+  const googleImageSearchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(currentCard.name + ' ' + currentCard.setName + ' card')}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
@@ -152,7 +171,7 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
                 : 'text-slate-400 hover:text-white bg-slate-900/60'
             }`}
           >
-            <Edit2 className="h-3.5 w-3.5" /> Editar Datos
+            <Edit2 className="h-3.5 w-3.5" /> Editar Datos / Nombre
           </button>
         </div>
 
@@ -203,14 +222,47 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
                 />
               </div>
 
-              <div className="mt-3 flex items-center gap-2">
+              {/* Photo Actions */}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:underline"
+                  className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700"
                 >
-                  <Camera className="h-3 w-3" /> Subir Foto de Calidad / Portada
+                  <Camera className="h-3 w-3 text-amber-400" /> Subir Foto Local
+                </button>
+                <a
+                  href={googleImageSearchUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:underline bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-800/60"
+                >
+                  <Search className="h-3 w-3" /> Buscar Arte Oficial en Google
+                </a>
+                <button
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:underline bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-800/60"
+                >
+                  <Link2 className="h-3 w-3" /> Pegar Link de Imagen
                 </button>
               </div>
+
+              {showUrlInput && (
+                <form onSubmit={handleApplyCustomUrl} className="w-full mt-2 flex gap-1.5">
+                  <input
+                    type="url"
+                    placeholder="https://... imagen de la carta"
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-bold text-black hover:bg-amber-400"
+                  >
+                    Aplicar
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Market Prices & Details */}
@@ -223,7 +275,16 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
                   <span className="font-mono text-xs text-slate-400">{currentCard.number}</span>
                 </div>
 
-                <h2 className="mt-1 text-2xl font-black text-white">{currentCard.name}</h2>
+                <div className="flex items-center justify-between mt-1">
+                  <h2 className="text-2xl font-black text-white">{currentCard.name}</h2>
+                  <button
+                    onClick={() => setActiveTab('edit')}
+                    className="flex items-center gap-1 text-xs text-amber-400 hover:underline font-semibold"
+                  >
+                    <Edit2 className="h-3 w-3" /> Editar
+                  </button>
+                </div>
+
                 {currentCard.teamOrFranchise && (
                   <p className="text-xs text-slate-400">{currentCard.teamOrFranchise}</p>
                 )}
@@ -397,7 +458,7 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
             <div>
               <h3 className="text-base font-bold text-white">Editar Información de la Carta</h3>
               <p className="text-xs text-slate-400">
-                Ajusta el nombre, número de serie, precio o notas de tu carta
+                Ajusta el nombre del jugador, colección, número de serie o precio
               </p>
             </div>
 
@@ -407,6 +468,7 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
                 <input
                   type="text"
                   value={editName}
+                  placeholder="Ej. Cristiano Ronaldo, Chancel Mbemba, Folarin Balogun"
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
                 />
@@ -417,6 +479,7 @@ export const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, onUpdate
                 <input
                   type="text"
                   value={editSet}
+                  placeholder="Ej. Panini Prizm Soccer, Topps Chrome UCL"
                   onChange={(e) => setEditSet(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-white focus:border-amber-400 focus:outline-none"
                 />
