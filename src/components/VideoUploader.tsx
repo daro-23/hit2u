@@ -8,13 +8,13 @@ import { OpeningSession, PokemonCard } from '@/types/pokemon';
 interface VideoUploaderProps {
   onSessionLoaded: (session: OpeningSession, videoUrl: string | null) => void;
   onCardDetected: (card: PokemonCard) => void;
-  apiKey: string;
+  apiKey?: string;
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
   onSessionLoaded,
   onCardDetected,
-  apiKey
+  apiKey = ''
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

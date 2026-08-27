@@ -12,7 +12,6 @@ import { CardFeed } from '@/components/CardFeed';
 import { RoiSummary } from '@/components/RoiSummary';
 import { CardDetailModal } from '@/components/CardDetailModal';
 import { ShareSummaryModal } from '@/components/ShareSummaryModal';
-import { ApiKeyModal } from '@/components/ApiKeyModal';
 import { OpeningSession, UniversalCard, CardCategory, CollectionSet } from '@/types/pokemon';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { Sparkles, Flame, PlusCircle, Trophy, Zap } from 'lucide-react';
@@ -27,18 +26,6 @@ export default function Home() {
 
   // Modals
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [apiKey, setApiKey] = useState<string>('');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('hit2u_gemini_key');
-    if (saved) setApiKey(saved);
-  }, []);
-
-  const handleSaveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('hit2u_gemini_key', key);
-  };
 
   const handleCategorySelect = (cat: CardCategory) => {
     setActiveCategory(cat);
@@ -111,8 +98,6 @@ export default function Home() {
     <div className="min-h-screen bg-[#070a0f] text-slate-100 selection:bg-amber-500 selection:text-black">
       {/* Header */}
       <Header
-        onOpenSettings={() => setIsApiKeyModalOpen(true)}
-        hasApiKey={Boolean(apiKey)}
         totalCardsDetected={session.cards.length}
         totalValue={totalPulledValue}
       />
@@ -175,7 +160,6 @@ export default function Home() {
           <VideoUploader
             onSessionLoaded={handleSessionLoaded}
             onCardDetected={handleCardDetected}
-            apiKey={apiKey}
           />
         </section>
 
@@ -265,14 +249,6 @@ export default function Home() {
         <ShareSummaryModal
           session={session}
           onClose={() => setIsShareModalOpen(false)}
-        />
-      )}
-
-      {isApiKeyModalOpen && (
-        <ApiKeyModal
-          apiKey={apiKey}
-          onSaveApiKey={handleSaveApiKey}
-          onClose={() => setIsApiKeyModalOpen(false)}
         />
       )}
     </div>

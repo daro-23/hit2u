@@ -1,18 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Key, Zap, Flame, DollarSign, ShieldCheck, Trophy } from 'lucide-react';
+import { Sparkles, Flame, Zap } from 'lucide-react';
 
 interface HeaderProps {
-  onOpenSettings: () => void;
-  hasApiKey: boolean;
   totalCardsDetected: number;
   totalValue: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onOpenSettings,
-  hasApiKey,
   totalCardsDetected,
   totalValue
 }) => {
@@ -75,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Live session pill + Action buttons */}
+        {/* Live session pill + AI Status */}
         <div className="flex items-center gap-3">
           {totalCardsDetected > 0 && (
             <div className="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 text-xs shadow-inner">
@@ -93,20 +89,11 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* AI Status / API Key Button */}
-          <button
-            onClick={onOpenSettings}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-              hasApiKey
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
-                : 'border-slate-700 bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
-            }`}
-          >
-            <Key className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">
-              {hasApiKey ? 'Gemini AI Activo' : 'Configurar Gemini API'}
-            </span>
-          </button>
+          {/* AI Status Badge */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400 shadow-sm shadow-emerald-500/10">
+            <Zap className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">AI Vision Engine Activo</span>
+          </div>
         </div>
       </div>
     </header>
