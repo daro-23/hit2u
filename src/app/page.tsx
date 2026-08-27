@@ -33,6 +33,7 @@ export default function Home() {
   // User Auth & Key Management
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [hasServerApiKey, setHasServerApiKey] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -51,6 +52,16 @@ export default function Home() {
     if (savedKey) {
       setGeminiApiKey(savedKey);
     }
+
+    // Check if Vercel server has GEMINI_API_KEY environment variable configured
+    fetch('/api/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.hasApiKey) {
+          setHasServerApiKey(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleSaveApiKey = (key: string) => {
@@ -187,6 +198,7 @@ export default function Home() {
 
   const totalPulledValue = session.cards.reduce((acc, c) => acc + c.prices.raw, 0);
   const isDark = theme === 'dark';
+  const isKeyActive = Boolean(geminiApiKey) || hasServerApiKey;
 
   return (
     <div className={`min-h-screen relative transition-colors duration-400 ${
@@ -201,7 +213,7 @@ export default function Home() {
       <Header
         user={currentUser}
         theme={theme}
-        hasApiKey={Boolean(geminiApiKey)}
+        hasApiKey={isKeyActive}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onToggleTheme={handleToggleTheme}
         onOpenAuth={() => setIsAuthModalOpen(true)}
