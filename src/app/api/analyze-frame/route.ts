@@ -5,32 +5,30 @@ import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pok
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageBase64, timestamp = 0, apiKey: clientApiKey, selectedModel } = body;
+    const { imageBase64, timestamp = 0 } = body;
 
+    // Secure server-side API key from Vercel Environment Variables only
     const apiKey =
-      clientApiKey ||
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
-      process.env.GOOGLE_GENAI_API_KEY ||
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      process.env.GOOGLE_GENAI_API_KEY;
 
     if (!apiKey) {
-      console.warn('GEMINI_API_KEY is not defined in env or request body.');
-      return NextResponse.json({
-        success: false,
-        error: 'No se detectó GEMINI_API_KEY. Ingresa tu API Key en el botón "Conectar Gemini AI" arriba.',
-        card: createFallbackCard(imageBase64, timestamp)
-      });
+      console.error('CRITICAL: GEMINI_API_KEY is not defined in server environment variables.');
+      return NextResponse.json(
+        { success: false, error: 'GEMINI_API_KEY environment variable missing on server' },
+        { status: 500 }
+      );
     }
 
-    if (apiKey && imageBase64) {
+    if (imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
       const prompt = `You are an elite sports card and TCG authenticator and OCR specialist.
 Inspect this image of a sports trading card from a pack opening video.
-Look at the card frame and banners:
+Look closely at the card frame and text banners:
 1. "player": Read the EXACT name printed on the card banner (e.g. "Alexander Isak", "Warren Zaïre-Emery", "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Folarin Balogun", "Chancel Mbemba", "Lionel Messi", "Christian Pulisic").
-2. "team": Country or team printed on the card (e.g. "Sweden", "France", "Colombia", "Portugal", "Switzerland", "DR Congo").
+2. "team": Country or team printed on the card (e.g. "Sweden", "France", "Colombia", "Portugal", "Switzerland", "DR Congo", "Argentina").
 3. "set": Collection name (e.g. "Panini Prizm FIFA World Cup", "Topps Chrome UCL").
 4. "finish": Parallel finish (e.g. "Silver Prizm", "Base Card", "Refractor", "Gold /10").
 5. "price": Realistic raw market price in USD (e.g. Alexander Isak Silver: 14.00, Cristiano Ronaldo Silver: 28.00, Warren Zaïre-Emery: 12.00, Yáser Asprilla: 6.50, Base card: 3.50).
@@ -47,10 +45,8 @@ Return ONLY valid JSON matching this schema:
       // Initialize the official Google Gen AI SDK
       const ai = new GoogleGenAI({ apiKey });
 
-      // Support Gemini 3.7 Flash, 3.6 Flash, 3.5 Flash, 2.5 Flash, 2.0 Flash in priority
-      const models = selectedModel
-        ? [selectedModel, 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-        : ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      // Try Gemini 3.7 Flash, 3.6 Flash, 3.5 Flash, 2.5 Flash, 2.0 Flash
+      const models = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
       for (const modelName of models) {
         try {

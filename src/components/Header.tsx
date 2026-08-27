@@ -1,14 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Flame, Zap, User, Save, Sun, Moon, Key } from 'lucide-react';
+import { Sparkles, Flame, User, Save, Sun, Moon } from 'lucide-react';
 import { UserProfile } from '@/types/pokemon';
 
 interface HeaderProps {
   user: UserProfile | null;
   theme: 'dark' | 'light';
-  hasApiKey: boolean;
-  onOpenApiKeyModal: () => void;
   onToggleTheme: () => void;
   onOpenAuth: () => void;
   onSaveCurrentSession: () => void;
@@ -20,8 +18,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   user,
   theme,
-  hasApiKey,
-  onOpenApiKeyModal,
   onToggleTheme,
   onOpenAuth,
   onSaveCurrentSession,
@@ -50,15 +46,19 @@ export const Header: React.FC<HeaderProps> = ({
             <Flame className="h-3.5 w-3.5" /> LIVE MARKET TRENDS:
           </span>
           <span className="flex items-center gap-1.5 font-medium">
-            ⚽ Folarin Balogun Scorers Club /49 <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$45.00 (+7.2%)</span>
-          </span>
-          <span className="opacity-30">•</span>
-          <span className="flex items-center gap-1.5 font-medium">
-            ⚽ Lamine Yamal Topps RC <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$280.00 (+14.2%)</span>
+            ⚽ Alexander Isak Silver <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$14.00 (+4.5%)</span>
           </span>
           <span className="opacity-30">•</span>
           <span className="flex items-center gap-1.5 font-medium">
             ⚽ Cristiano Ronaldo Silver <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$28.00 (+5.1%)</span>
+          </span>
+          <span className="opacity-30">•</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            ⚽ Warren Zaïre-Emery Prizm <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$12.00 (+8.2%)</span>
+          </span>
+          <span className="opacity-30">•</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            ⚡ Charizard ex 151 SIR <span className="text-emerald-600 dark:text-emerald-400 font-bold">\$124.50 (+3.2%)</span>
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            TCGPlayer • eBay Sold • PriceCharting Live
+            Gemini 3.7 Flash AI • eBay Sold Live
           </span>
         </div>
       </div>
@@ -104,18 +104,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Gemini AI Key button */}
-          <button
-            onClick={onOpenApiKeyModal}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-bold transition-all shadow-sm ${
-              hasApiKey
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 animate-pulse'
-            }`}
-          >
-            <Key className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{hasApiKey ? 'Gemini AI Activo' : 'Conectar Gemini AI'}</span>
-          </button>
+          {totalCardsDetected > 0 && (
+            <div className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs shadow-inner ${
+              isDark
+                ? 'bg-slate-800/80 border-slate-700/60'
+                : 'bg-slate-100 border-slate-200'
+            }`}>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider opacity-60">Cartas</span>
+                <span className="font-bold text-sm">{totalCardsDetected}</span>
+              </div>
+              <div className={`h-6 w-px mx-1 ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider opacity-60">Valor Extraído</span>
+                <span className="font-black text-amber-500 text-sm">
+                  \${totalValue.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Save to Account Button */}
           {hasUnsavedSession && (

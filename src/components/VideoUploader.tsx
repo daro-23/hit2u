@@ -1,36 +1,25 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, Video, Sparkles, Play, Camera, Film, Loader2, ArrowRight, Sliders, CheckCircle2, AlertCircle, Key } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
 interface VideoUploaderProps {
   onSessionLoaded: (session: OpeningSession, videoUrl: string | null) => void;
   onCardDetected: (card: UniversalCard) => void;
-  apiKey?: string;
-  onOpenApiKeyModal?: () => void;
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
   onSessionLoaded,
-  onCardDetected,
-  apiKey = '',
-  onOpenApiKeyModal
+  onCardDetected
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanSpeed, setScanSpeed] = useState<'fast' | 'standard' | 'detailed'>('standard');
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
-  const [lastApiError, setLastApiError] = useState<string | null>(null);
-  const [localKey, setLocalKey] = useState<string>(apiKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem('hit2u_gemini_api_key');
-    if (savedKey) setLocalKey(savedKey);
-  }, [apiKey]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -58,10 +47,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const processUserVideo = async (file: File) => {
     setIsProcessing(true);
     setProgressPercent(2);
-    setLastApiError(null);
-    setProcessingStatus('Cargando video en alta definición...');
-
-    const activeKey = localKey || apiKey || (typeof window !== 'undefined' ? localStorage.getItem('hit2u_gemini_api_key') || '' : '');
+    setProcessingStatus('Cargando video y extrayendo fotogramas con Gemini 3.7 Flash...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -72,7 +58,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     video.onloadedmetadata = async () => {
       const duration = video.duration || 30;
 
-      // Smart sampling step to balance accuracy and API speed
+      // Smart sampling step
       let step = 3.5;
       if (scanSpeed === 'fast') step = 5.0;
       if (scanSpeed === 'detailed') step = 2.2;
@@ -82,7 +68,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         sampleTimes.push(Number(t.toFixed(1)));
       }
 
-      setProcessingStatus(`Analizando ${sampleTimes.length} cartas a lo largo del video...`);
+      setProcessingStatus(`Analizando ${sampleTimes.length} cartas con Gemini 3.7 Flash...`);
 
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
@@ -104,7 +90,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         const time = sampleTimes[i];
         const currentPct = Math.round(((i + 1) / sampleTimes.length) * 100);
         setProgressPercent(currentPct);
-        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s) — ${foundCards.length} cartas extraídas...`);
+        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s) — ${foundCards.length} cartas detectadas...`);
 
         try {
           video.currentTime = time;
@@ -112,7 +98,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             video.onseeked = r;
           });
 
-          // Wait 160ms for video decoder to render crystal clear unblurred frame
+          // Wait 160ms for video decoder to render full sharp frame
           await new Promise(r => setTimeout(r, 160));
 
           canvas.width = video.videoWidth || 720;
@@ -120,7 +106,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
           const base64 = canvas.toDataURL('image/jpeg', 0.88);
 
-          // Small delay to prevent API rate limits (15 RPM free tier)
+          // Small delay to prevent API rate limits
           await new Promise(r => setTimeout(r, 300));
 
           const response = await fetch('/api/analyze-frame', {
@@ -128,16 +114,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               imageBase64: base64,
-              timestamp: Number(time.toFixed(1)),
-              apiKey: activeKey
+              timestamp: Number(time.toFixed(1))
             })
           });
 
           if (response.ok) {
             const data = await response.json();
-            if (data.error && !lastApiError) {
-              setLastApiError(data.error);
-            }
             if (data.card) {
               const card = data.card as UniversalCard;
               foundCards.push(card);
@@ -207,7 +189,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? 'Analizando Cartas del Video con IA Multimodal...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
+              {isProcessing ? 'Analizando Cartas del Video con Gemini 3.7 Flash...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
             <p className="text-sm text-slate-400 max-w-lg mx-auto">
               {isProcessing
@@ -229,19 +211,6 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                 <span>{processingStatus}</span>
                 <span className="text-amber-400">{progressPercent}%</span>
               </div>
-            </div>
-          )}
-
-          {lastApiError && (
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenApiKeyModal) onOpenApiKeyModal();
-              }}
-              className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/40 p-2.5 text-xs text-amber-300 max-w-md cursor-pointer hover:bg-amber-500/30 transition-all"
-            >
-              <Key className="h-4 w-4 shrink-0 text-amber-400" />
-              <span className="text-[11px] font-semibold">{lastApiError}</span>
             </div>
           )}
 
