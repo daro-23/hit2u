@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { imageBase64, timestamp = 0 } = body;
 
-    // Secure server-side API key from Vercel Environment Variables only
+    // Secure server-side API key from Vercel Environment Variables
     const apiKey =
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
@@ -27,11 +27,11 @@ export async function POST(req: NextRequest) {
       const prompt = `You are an elite sports card and TCG authenticator and OCR specialist.
 Inspect this image of a sports trading card from a pack opening video.
 Look closely at the card frame, player jersey, and text banners:
-1. "player": Read the EXACT name printed on the card banner (e.g. "Alexander Isak", "Warren Zaïre-Emery", "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Folarin Balogun", "Chancel Mbemba", "Eduardo Camavinga", "Lionel Messi", "Christian Pulisic").
-2. "team": Country or team printed on the card (e.g. "Sweden", "France", "Colombia", "Portugal", "Switzerland", "DR Congo", "Argentina").
+1. "player": Read the EXACT name printed on the card banner (e.g. "Eduardo Camavinga", "Alexander Isak", "Warren Zaïre-Emery", "Yáser Asprilla", "Cristiano Ronaldo", "Rubén Vargas", "Folarin Balogun", "Chancel Mbemba", "Lionel Messi", "Christian Pulisic").
+2. "team": Country or team printed on the card (e.g. "France", "Sweden", "Colombia", "Portugal", "Switzerland", "DR Congo", "Argentina").
 3. "set": Collection name (e.g. "Panini Prizm FIFA World Cup", "Topps Chrome UCL").
 4. "finish": Parallel finish (e.g. "Silver Prizm", "Base Card", "Refractor", "Gold /10").
-5. "price": Realistic raw market price in USD (e.g. Alexander Isak: 14.00, Cristiano Ronaldo: 28.00, Warren Zaïre-Emery: 12.00, Yáser Asprilla: 6.50, Base card: 3.50).
+5. "price": Realistic raw market price in USD (e.g. Cristiano Ronaldo: 28.00, Eduardo Camavinga: 16.00, Alexander Isak: 14.00, Warren Zaïre-Emery: 12.00, Yáser Asprilla: 6.50, Base card: 3.50).
 
 Return ONLY valid JSON:
 {
@@ -42,8 +42,16 @@ Return ONLY valid JSON:
   "price": number
 }`;
 
-      // Try Google's production models (gemini-2.0-flash and gemini-1.5-flash)
-      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+      // Complete family of Gemini models prioritized: Gemini 3.7 Flash -> 3.6 -> 3.5 -> 3.5 Lite -> 3.1 Pro -> 2.0 Flash -> 1.5 Flash
+      const modelsToTry = [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-pro-preview',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash'
+      ];
 
       for (const model of modelsToTry) {
         try {
@@ -123,10 +131,10 @@ Return ONLY valid JSON:
             }
           } else {
             const errBody = await res.text();
-            console.error(`Gemini model ${model} failed HTTP ${res.status}:`, errBody);
+            console.warn(`Model ${model} status ${res.status}:`, errBody);
           }
         } catch (callErr) {
-          console.error(`Error calling ${model}:`, callErr);
+          console.warn(`Error calling model ${model}:`, callErr);
         }
       }
     }
