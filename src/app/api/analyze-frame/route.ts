@@ -5,7 +5,7 @@ import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pok
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageBase64, timestamp = 0, apiKey: clientApiKey } = body;
+    const { imageBase64, timestamp = 0, apiKey: clientApiKey, selectedModel } = body;
 
     const apiKey =
       clientApiKey ||
@@ -47,8 +47,10 @@ Return ONLY valid JSON matching this schema:
       // Initialize the official Google Gen AI SDK
       const ai = new GoogleGenAI({ apiKey });
 
-      // List of next-gen Gemini models to try in order
-      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      // Support Gemini 3.7 Flash, 3.6 Flash, 3.5 Flash, 2.5 Flash, 2.0 Flash in priority
+      const models = selectedModel
+        ? [selectedModel, 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        : ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
       for (const modelName of models) {
         try {

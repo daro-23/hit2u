@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Key, CheckCircle2, AlertCircle, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
+import { X, Key, CheckCircle2, AlertCircle, ExternalLink, Sparkles, Loader2, Cpu } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 
 interface GeminiApiKeyModalProps {
   apiKey: string;
@@ -15,6 +16,7 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
   onClose
 }) => {
   const [inputKey, setInputKey] = useState(apiKey);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.7-flash');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -28,25 +30,27 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
     setTestResult(null);
 
     try {
-      // Test Gemini API with a tiny probe
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${inputKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Reply with ONLY the single word OK' }] }],
-          generationConfig: { maxOutputTokens: 10 }
-        })
+      const ai = new GoogleGenAI({ apiKey: inputKey.trim() });
+      const res = await ai.models.generateContent({
+        model: selectedModel,
+        contents: ['Reply with ONLY the word OK'],
+        config: { maxOutputTokens: 10 }
       });
 
-      if (res.ok) {
-        setTestResult({ success: true, message: '¡Conexión Exitosa con Google Gemini Vision AI! 🎉' });
+      if (res.text) {
+        setTestResult({
+          success: true,
+          message: `¡Conexión Exitosa con ${selectedModel.toUpperCase()}! 🎉 Listo para OCR de cartas.`
+        });
         onSaveApiKey(inputKey.trim());
       } else {
-        const errText = await res.text();
-        setTestResult({ success: false, message: `Error de Google API (${res.status}): Verifica que tu clave sea válida.` });
+        setTestResult({ success: false, message: 'Error: El modelo no devolvió texto.' });
       }
-    } catch (err) {
-      setTestResult({ success: false, message: 'Error de red al conectar con Google AI.' });
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Error al conectar con ${selectedModel}: ${err?.message || 'Verifica tu API key o intenta con gemini-2.5-flash'}`
+      });
     } finally {
       setIsTesting(false);
     }
@@ -77,11 +81,29 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
           </div>
           <div>
             <h3 className="text-base font-bold text-white">Conexión de Google Gemini AI</h3>
-            <p className="text-xs text-slate-400">Para lectura de nombres y cartas en videos</p>
+            <p className="text-xs text-slate-400">Selecciona tu modelo y prueba la conexión</p>
           </div>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
+          {/* Model Selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1">
+              <Cpu className="h-3.5 w-3.5 text-amber-400" /> Modelo de Reconocimiento IA
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
+            >
+              <option value="gemini-3.7-flash">✨ Gemini 3.7 Flash (Ultra Rápido & Precisión OCR)</option>
+              <option value="gemini-3.6-flash">⚡ Gemini 3.6 Flash</option>
+              <option value="gemini-3.5-flash">⚡ Gemini 3.5 Flash</option>
+              <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash">⚡ Gemini 2.0 Flash</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Google Gemini API Key
@@ -114,14 +136,14 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
               className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-colors"
             >
               {isTesting ? <Loader2 className="h-4 w-4 animate-spin text-amber-400" /> : <Sparkles className="h-4 w-4 text-amber-400" />}
-              <span>{isTesting ? 'Probando...' : 'Probar Conexión'}</span>
+              <span>{isTesting ? 'Probando...' : '⚡ Probar Conexión'}</span>
             </button>
 
             <button
               type="submit"
               className="flex-1 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-black hover:bg-amber-400 shadow-lg shadow-amber-500/20 transition-colors"
             >
-              Guardar Clave
+              Guardar y Usar
             </button>
           </div>
 
