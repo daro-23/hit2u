@@ -1,13 +1,36 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders } from 'lucide-react';
+import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders, Eye } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
 interface VideoUploaderProps {
   onSessionLoaded: (session: OpeningSession, videoUrl: string | null) => void;
   onCardDetected: (card: UniversalCard) => void;
+}
+
+// Fast Image Sharpness / Edge Gradient Variance Algorithm
+// Measures high-frequency pixel transitions: Sharp text = High Score, Motion Blur = Low Score
+function calculateSharpness(ctx: CanvasRenderingContext2D, width: number, height: number): number {
+  try {
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+    let score = 0;
+    const step = 4; // Fast step sampling
+    for (let y = 1; y < height - 1; y += step) {
+      for (let x = 1; x < width - 1; x += step) {
+        const idx = (y * width + x) * 4;
+        const center = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        const right = (data[idx + 4] + data[idx + 5] + data[idx + 6]) / 3;
+        const bottom = (data[idx + width * 4] + data[idx + width * 4 + 1] + data[idx + width * 4 + 2]) / 3;
+        score += Math.abs(center - right) + Math.abs(center - bottom);
+      }
+    }
+    return score;
+  } catch {
+    return 1;
+  }
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
@@ -47,7 +70,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const processUserVideo = async (file: File) => {
     setIsProcessing(true);
     setProgressPercent(2);
-    setProcessingStatus('Cargando video y preparando escaneo IA...');
+    setProcessingStatus('Iniciando detector de máxima nitidez y enfoque...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -63,12 +86,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       if (scanSpeed === 'fast') step = 5.2;
       if (scanSpeed === 'detailed') step = 2.4;
 
-      const sampleTimes: number[] = [];
+      const baseSampleTimes: number[] = [];
       for (let t = 1.0; t < duration - 0.5; t += step) {
-        sampleTimes.push(Number(t.toFixed(1)));
+        baseSampleTimes.push(Number(t.toFixed(1)));
       }
 
-      setProcessingStatus(`Analizando ${sampleTimes.length} cartas a lo largo del video...`);
+      setProcessingStatus(`Buscando los momentos más nítidos y sin movimiento de ${baseSampleTimes.length} cartas...`);
 
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
@@ -86,54 +109,70 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       const ctx = canvas.getContext('2d');
       const foundCards: UniversalCard[] = [];
 
-      for (let i = 0; i < sampleTimes.length; i++) {
-        const time = sampleTimes[i];
-        const currentPct = Math.round(((i + 1) / sampleTimes.length) * 100);
+      for (let i = 0; i < baseSampleTimes.length; i++) {
+        const baseTime = baseSampleTimes[i];
+        const currentPct = Math.round(((i + 1) / baseSampleTimes.length) * 100);
         setProgressPercent(currentPct);
-        setProcessingStatus(`Analizando carta ${i + 1} de ${sampleTimes.length} (${Math.floor(time)}s / ${Math.round(duration)}s)...`);
+        setProcessingStatus(`Enfocando carta ${i + 1} de ${baseSampleTimes.length} (${Math.floor(baseTime)}s / ${Math.round(duration)}s) — Seleccionando fotograma más claro...`);
 
         try {
-          video.currentTime = time;
-          await new Promise((r) => {
-            video.onseeked = r;
-          });
+          // Candidate micro-offsets around baseTime to find the moment the hand is still
+          const microOffsets = [0, 0.4, 0.8, 1.2];
+          let bestBase64 = '';
+          let bestSharpness = -1;
+          let bestTime = baseTime;
 
-          // Wait 150ms for decoder
-          await new Promise(r => setTimeout(r, 150));
+          for (const offset of microOffsets) {
+            const candidateTime = Math.min(baseTime + offset, duration - 0.2);
+            video.currentTime = candidateTime;
 
-          // Optimize frame resolution for fast OCR processing (max width 600px)
-          const origW = video.videoWidth || 640;
-          const origH = video.videoHeight || 1138;
-          const targetW = 540;
-          const targetH = Math.round((origH / origW) * targetW);
+            await new Promise((r) => {
+              video.onseeked = r;
+            });
 
-          canvas.width = targetW;
-          canvas.height = targetH;
-          ctx?.drawImage(video, 0, 0, targetW, targetH);
-          const base64 = canvas.toDataURL('image/jpeg', 0.80);
+            // Wait 120ms for decoder to finish rendering uncompressed frame
+            await new Promise(r => setTimeout(r, 120));
 
-          const response = await fetch('/api/analyze-frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              imageBase64: base64,
-              timestamp: Number(time.toFixed(1))
-            })
-          });
+            const origW = video.videoWidth || 640;
+            const origH = video.videoHeight || 1138;
+            const targetW = 540;
+            const targetH = Math.round((origH / origW) * targetW);
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.debugLogs) {
-              console.log(`[Frame ${i + 1} @ ${time}s]`, data.debugLogs);
+            canvas.width = targetW;
+            canvas.height = targetH;
+            ctx?.drawImage(video, 0, 0, targetW, targetH);
+
+            if (ctx) {
+              const sharpness = calculateSharpness(ctx, targetW, targetH);
+              if (sharpness > bestSharpness) {
+                bestSharpness = sharpness;
+                bestBase64 = canvas.toDataURL('image/jpeg', 0.88);
+                bestTime = candidateTime;
+              }
             }
-            if (data.card) {
-              const card = data.card as UniversalCard;
-              foundCards.push(card);
-              onCardDetected(card);
+          }
+
+          if (bestBase64) {
+            const response = await fetch('/api/analyze-frame', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: bestBase64,
+                timestamp: Number(bestTime.toFixed(1))
+              })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.card) {
+                const card = data.card as UniversalCard;
+                foundCards.push(card);
+                onCardDetected(card);
+              }
             }
           }
         } catch (err) {
-          console.error('Error processing frame at time', time, err);
+          console.error('Error processing sharp frame at time', baseTime, err);
         }
       }
 
@@ -195,12 +234,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? 'Analizando Cartas del Video con IA Multimodal...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
+              {isProcessing ? 'Detector de Máxima Nitidez & Escaneo OCR...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
             <p className="text-sm text-slate-400 max-w-lg mx-auto">
               {isProcessing
                 ? processingStatus
-                : 'Arrastra y suelta tu video (MP4, MOV). La IA analizará cada carta mostrada, leyendo nombres de jugadores, equipos, marcas y precios en vivo.'}
+                : 'Arrastra y suelta tu video (MP4, MOV). El detector inteligente evalúa ráfagas de fotogramas, descarta el movimiento borroso y elige el momento donde la carta está 100% quieta y enfocada.'}
             </p>
           </div>
 
@@ -249,7 +288,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Estándar (~cada 3.6s • Recomendado)
+                Estándar (~cada 3.6s • Anti-Blur)
               </button>
               <button
                 type="button"
