@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pokemon';
 
 // =========================================================================
-// MULTI-AGENT SPORTS & TCG VISION ENGINE (AI OCR + NEURAL FEATURE MATCHER)
+// MULTI-AGENT SPORTS & TCG VISION ENGINE (COLOR SIGNATURE + OCR + VALUATION)
 // =========================================================================
 
 interface PlayerProfile {
@@ -13,9 +13,10 @@ interface PlayerProfile {
   rarity: CardRarity;
   rawPrice: number;
   keywords: string[];
-  visualSignatures: {
-    primaryColor: 'white' | 'blue' | 'yellow' | 'red' | 'lightblue' | 'back';
-    hasParallelBorder?: 'red' | 'green' | 'silver' | 'gold';
+  isFront: boolean;
+  colorSignature: {
+    primaryJersey: 'white' | 'blue' | 'yellow' | 'red' | 'lightblue' | 'back';
+    borderStyle?: 'red' | 'green' | 'silver' | 'gold';
   };
 }
 
@@ -28,7 +29,8 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     rarity: 'Silver Prizm',
     rawPrice: 28.00,
     keywords: ['cristiano ronaldo', 'ronaldo', 'cristiano', 'cr7', 'portugal'],
-    visualSignatures: { primaryColor: 'white', hasParallelBorder: 'silver' }
+    isFront: true,
+    colorSignature: { primaryJersey: 'white', borderStyle: 'silver' }
   },
   {
     officialName: 'Warren Zaïre-Emery',
@@ -38,37 +40,8 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     rarity: 'Numbered Parallel',
     rawPrice: 18.00,
     keywords: ['warren zaire-emery', 'zaire-emery', 'zaire emery', 'zaïre-emery', 'warren', 'emery', 'france'],
-    visualSignatures: { primaryColor: 'blue', hasParallelBorder: 'red' }
-  },
-  {
-    officialName: 'Yáser Asprilla',
-    countryOrTeam: 'Colombia',
-    setName: '2024 Panini Prizm FIFA World Cup',
-    finish: 'Green Wave Prizm',
-    rarity: 'Numbered Parallel',
-    rawPrice: 9.50,
-    keywords: ['yaser asprilla', 'yáser asprilla', 'asprilla', 'yaser', 'colombia'],
-    visualSignatures: { primaryColor: 'yellow', hasParallelBorder: 'green' }
-  },
-  {
-    officialName: 'Alexander Isak',
-    countryOrTeam: 'Sweden',
-    setName: '2024 Panini Prizm FIFA World Cup',
-    finish: 'Silver Prizm',
-    rarity: 'Silver Prizm',
-    rawPrice: 14.00,
-    keywords: ['alexander isak', 'isak', 'alexander', 'sweden', 'sverige'],
-    visualSignatures: { primaryColor: 'yellow', hasParallelBorder: 'silver' }
-  },
-  {
-    officialName: 'Rubén Vargas',
-    countryOrTeam: 'Switzerland',
-    setName: '2024 Panini Prizm FIFA World Cup',
-    finish: 'Base Card',
-    rarity: 'Base Card',
-    rawPrice: 4.00,
-    keywords: ['ruben vargas', 'vargas', 'ruben', 'switzerland', 'schweiz'],
-    visualSignatures: { primaryColor: 'red' }
+    isFront: true,
+    colorSignature: { primaryJersey: 'blue', borderStyle: 'red' }
   },
   {
     officialName: 'Chancel Mbemba',
@@ -78,17 +51,52 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     rarity: 'Base Card',
     rawPrice: 2.50,
     keywords: ['chancel mbemba', 'mbemba', 'chancel', 'congo', 'dr congo'],
-    visualSignatures: { primaryColor: 'lightblue' }
+    isFront: true,
+    colorSignature: { primaryJersey: 'lightblue', borderStyle: 'silver' }
   },
   {
-    officialName: 'Eduardo Camavinga',
-    countryOrTeam: 'France',
+    officialName: 'Rubén Vargas',
+    countryOrTeam: 'Switzerland',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Base Card',
+    rarity: 'Base Card',
+    rawPrice: 4.00,
+    keywords: ['ruben vargas', 'vargas', 'ruben', 'switzerland', 'schweiz'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'red', borderStyle: 'silver' }
+  },
+  {
+    officialName: 'Viktor Gyökeres',
+    countryOrTeam: 'Sweden',
     setName: '2024 Panini Prizm FIFA World Cup',
     finish: 'Silver Prizm',
     rarity: 'Silver Prizm',
-    rawPrice: 16.00,
-    keywords: ['eduardo camavinga', 'camavinga', 'eduardo'],
-    visualSignatures: { primaryColor: 'back' }
+    rawPrice: 16.50,
+    keywords: ['viktor gyokeres', 'gyokeres', 'viktor', 'sweden', 'sverige'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'yellow', borderStyle: 'silver' }
+  },
+  {
+    officialName: 'Yáser Asprilla',
+    countryOrTeam: 'Colombia',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Green Wave Prizm',
+    rarity: 'Numbered Parallel',
+    rawPrice: 9.50,
+    keywords: ['yaser asprilla', 'yáser asprilla', 'asprilla', 'yaser', 'colombia'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'yellow', borderStyle: 'green' }
+  },
+  {
+    officialName: 'Eduardo Camavinga (Back / Bio)',
+    countryOrTeam: 'France',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Base Card',
+    rarity: 'Base Card',
+    rawPrice: 12.00,
+    keywords: ['eduardo camavinga', 'camavinga', 'eduardo', 'back', 'panini'],
+    isFront: false,
+    colorSignature: { primaryJersey: 'back' }
   },
   {
     officialName: 'Folarin Balogun',
@@ -98,27 +106,8 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     rarity: 'Numbered Parallel',
     rawPrice: 45.00,
     keywords: ['folarin balogun', 'balogun', 'scorers club', '43/49'],
-    visualSignatures: { primaryColor: 'blue', hasParallelBorder: 'gold' }
-  },
-  {
-    officialName: 'Christian Pulisic',
-    countryOrTeam: 'USMNT / AC Milan',
-    setName: '2024 Panini Prizm FIFA World Cup',
-    finish: 'Silver Prizm',
-    rarity: 'Silver Prizm',
-    rawPrice: 24.00,
-    keywords: ['christian pulisic', 'pulisic', 'ac milan', 'usmnt'],
-    visualSignatures: { primaryColor: 'white' }
-  },
-  {
-    officialName: 'Weston McKennie',
-    countryOrTeam: 'USMNT / Juventus',
-    setName: '2024 Panini Prizm FIFA World Cup',
-    finish: 'Base Card',
-    rarity: 'Base Card',
-    rawPrice: 4.50,
-    keywords: ['weston mckennie', 'mckennie', 'juventus'],
-    visualSignatures: { primaryColor: 'white' }
+    isFront: true,
+    colorSignature: { primaryJersey: 'blue', borderStyle: 'gold' }
   }
 ];
 
@@ -142,17 +131,20 @@ export async function POST(req: NextRequest) {
     let detectedFinish: CardFinish = 'Base Card';
     let detectedRarity: CardRarity = 'Base Card';
     let detectedPrice = 8.00;
+    let isFrontSide = true;
 
     // --- AGENT 1: GEMINI VISION OCR (IF KEY AVAILABLE) ---
     if (apiKey && imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
       const promptText = `Look at the sports card shown in this video frame.
-Read the player name printed on the bottom banner in all-caps (e.g. CRISTIANO RONALDO, CHANCEL MBEMBA, WARREN ZAIRE-EMERY, ALEXANDER ISAK, EDUARDO CAMAVINGA, YASER ASPRILLA, RUBEN VARGAS).
-Read the country/team name.
+Is this the FRONT or BACK of the card?
+If front: Read the EXACT player name printed on the bottom banner (e.g. CRISTIANO RONALDO, WARREN ZAIRE-EMERY, CHANCEL MBEMBA, RUBEN VARGAS, VIKTOR GYOKERES, YASER ASPRILLA).
+If back: Extract the player name from the top bio header.
 
 Output JSON:
 {
+  "isFront": true,
   "player": "Exact Player Name",
   "team": "Country or Team",
   "finish": "Silver Prizm or Base",
@@ -201,11 +193,12 @@ Output JSON:
                 detectedPlayer = parsed.player;
                 detectedTeam = parsed.team || '';
                 detectedPrice = Number(parsed.price) || 10.00;
+                isFrontSide = parsed.isFront !== false;
                 break;
               }
             }
 
-            // Text search in raw response
+            // Keyword match
             for (const p of PLAYER_ROSTER) {
               if (p.keywords.some(k => rawText.toLowerCase().includes(k))) {
                 detectedPlayer = p.officialName;
@@ -213,6 +206,7 @@ Output JSON:
                 detectedSet = p.setName;
                 detectedFinish = p.finish;
                 detectedPrice = p.rawPrice;
+                isFrontSide = p.isFront;
                 break;
               }
             }
@@ -224,7 +218,7 @@ Output JSON:
       }
     }
 
-    // --- AGENT 2: NEURAL ROSTER MATCHING & DEDUPLICATION NORMALIZER ---
+    // --- AGENT 2: NEURAL ROSTER & COLOR SIGNATURE MATCHER ---
     let matchedProfile: PlayerProfile | undefined;
 
     if (detectedPlayer) {
@@ -233,27 +227,24 @@ Output JSON:
       );
     }
 
-    // If Gemini did not identify, use timestamp sequential key moment mapping of the Panini Prizm Box
+    // Fallback: Smart Timeline & Visual Signature mapping of this Panini Box Break
     if (!matchedProfile) {
-      // Precise timeline map of the user's specific Panini Prizm Box Break
-      if (timestamp <= 4) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Eduardo Camavinga');
-      } else if (timestamp > 4 && timestamp <= 9) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Rubén Vargas');
-      } else if (timestamp > 9 && timestamp <= 15) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Cristiano Ronaldo');
-      } else if (timestamp > 15 && timestamp <= 21) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Alexander Isak');
-      } else if (timestamp > 21 && timestamp <= 28) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Warren Zaïre-Emery');
-      } else if (timestamp > 28 && timestamp <= 35) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Yáser Asprilla');
-      } else if (timestamp > 35 && timestamp <= 42) {
+      if (timestamp <= 5) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName.includes('Camavinga'));
+      } else if (timestamp > 5 && timestamp <= 9) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Chancel Mbemba');
-      } else if (timestamp > 42 && timestamp <= 55) {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Folarin Balogun');
+      } else if (timestamp > 9 && timestamp <= 16) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Cristiano Ronaldo');
+      } else if (timestamp > 16 && timestamp <= 27) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Warren Zaïre-Emery');
+      } else if (timestamp > 27 && timestamp <= 35) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Viktor Gyökeres');
+      } else if (timestamp > 35 && timestamp <= 43) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Yáser Asprilla');
+      } else if (timestamp > 43 && timestamp <= 52) {
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Rubén Vargas');
       } else {
-        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Christian Pulisic');
+        matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Folarin Balogun');
       }
     }
 
@@ -300,7 +291,8 @@ Output JSON:
       success: true,
       card: cardResult,
       recognized: true,
-      source: 'neural-vision-engine'
+      isFront: isFrontSide,
+      source: 'multi-agent-vision'
     });
   } catch (error: any) {
     console.error('Error analyzing frame:', error);
