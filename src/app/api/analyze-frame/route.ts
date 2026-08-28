@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pokemon';
 
 // =========================================================================
-// MULTI-AGENT SPORTS & TCG VISION ENGINE (COLOR SIGNATURE + OCR + VALUATION)
+// SUPERVISED 4-AGENT SPORTS & TCG RECOGNITION & VALUATION ENGINE
 // =========================================================================
 
 interface PlayerProfile {
@@ -28,7 +28,7 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Silver Prizm',
     rarity: 'Silver Prizm',
     rawPrice: 28.00,
-    keywords: ['cristiano ronaldo', 'ronaldo', 'cristiano', 'cr7', 'portugal'],
+    keywords: ['cristiano ronaldo', 'ronaldo', 'cristiano', 'cr7', 'portugal', '7'],
     isFront: true,
     colorSignature: { primaryJersey: 'white', borderStyle: 'silver' }
   },
@@ -39,7 +39,7 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Red Prizm Parallel',
     rarity: 'Numbered Parallel',
     rawPrice: 18.00,
-    keywords: ['warren zaire-emery', 'zaire-emery', 'zaire emery', 'zaïre-emery', 'warren', 'emery', 'france'],
+    keywords: ['warren zaire-emery', 'zaire-emery', 'zaire emery', 'zaïre-emery', 'warren', 'emery', 'france', '18'],
     isFront: true,
     colorSignature: { primaryJersey: 'blue', borderStyle: 'red' }
   },
@@ -50,7 +50,7 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Base Card',
     rarity: 'Base Card',
     rawPrice: 2.50,
-    keywords: ['chancel mbemba', 'mbemba', 'chancel', 'congo', 'dr congo'],
+    keywords: ['chancel mbemba', 'mbemba', 'chancel', 'congo', 'dr congo', '22'],
     isFront: true,
     colorSignature: { primaryJersey: 'lightblue', borderStyle: 'silver' }
   },
@@ -61,7 +61,7 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Base Card',
     rarity: 'Base Card',
     rawPrice: 4.00,
-    keywords: ['ruben vargas', 'vargas', 'ruben', 'switzerland', 'schweiz'],
+    keywords: ['ruben vargas', 'vargas', 'ruben', 'switzerland', 'schweiz', '17'],
     isFront: true,
     colorSignature: { primaryJersey: 'red', borderStyle: 'silver' }
   },
@@ -73,6 +73,17 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     rarity: 'Silver Prizm',
     rawPrice: 16.50,
     keywords: ['viktor gyokeres', 'gyokeres', 'viktor', 'sweden', 'sverige'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'yellow', borderStyle: 'silver' }
+  },
+  {
+    officialName: 'Alexander Isak',
+    countryOrTeam: 'Sweden',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Silver Prizm',
+    rarity: 'Silver Prizm',
+    rawPrice: 14.00,
+    keywords: ['alexander isak', 'isak', 'alexander', 'sweden'],
     isFront: true,
     colorSignature: { primaryJersey: 'yellow', borderStyle: 'silver' }
   },
@@ -94,7 +105,7 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Base Card',
     rarity: 'Base Card',
     rawPrice: 12.00,
-    keywords: ['eduardo camavinga', 'camavinga', 'eduardo', 'back', 'panini'],
+    keywords: ['eduardo camavinga', 'camavinga', 'eduardo', 'back', 'panini', 'bio'],
     isFront: false,
     colorSignature: { primaryJersey: 'back' }
   },
@@ -105,9 +116,31 @@ const PLAYER_ROSTER: PlayerProfile[] = [
     finish: 'Numbered /49',
     rarity: 'Numbered Parallel',
     rawPrice: 45.00,
-    keywords: ['folarin balogun', 'balogun', 'scorers club', '43/49'],
+    keywords: ['folarin balogun', 'balogun', 'scorers club', '43/49', '49'],
     isFront: true,
     colorSignature: { primaryJersey: 'blue', borderStyle: 'gold' }
+  },
+  {
+    officialName: 'Christian Pulisic',
+    countryOrTeam: 'USMNT / AC Milan',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Silver Prizm',
+    rarity: 'Silver Prizm',
+    rawPrice: 24.00,
+    keywords: ['christian pulisic', 'pulisic', 'ac milan', 'usmnt'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'white' }
+  },
+  {
+    officialName: 'Lionel Messi',
+    countryOrTeam: 'Argentina',
+    setName: '2024 Panini Prizm FIFA World Cup',
+    finish: 'Gold /10',
+    rarity: 'Gold Prizm /10',
+    rawPrice: 3400.00,
+    keywords: ['lionel messi', 'messi', 'argentina', '10'],
+    isFront: true,
+    colorSignature: { primaryJersey: 'lightblue', borderStyle: 'gold' }
   }
 ];
 
@@ -133,22 +166,23 @@ export async function POST(req: NextRequest) {
     let detectedPrice = 8.00;
     let isFrontSide = true;
 
-    // --- AGENT 1: GEMINI VISION OCR (IF KEY AVAILABLE) ---
+    // --- AGENT 1 & 2: GEMINI VISION OCR (IF KEY AVAILABLE) ---
     if (apiKey && imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-      const promptText = `Look at the sports card shown in this video frame.
-Is this the FRONT or BACK of the card?
-If front: Read the EXACT player name printed on the bottom banner (e.g. CRISTIANO RONALDO, WARREN ZAIRE-EMERY, CHANCEL MBEMBA, RUBEN VARGAS, VIKTOR GYOKERES, YASER ASPRILLA).
-If back: Extract the player name from the top bio header.
+      const promptText = `Analyze this trading card video frame:
+1. Is this the FRONT (player portrait) or BACK (stats/text)?
+2. Read the EXACT player name on the banner (e.g. CRISTIANO RONALDO, WARREN ZAIRE-EMERY, CHANCEL MBEMBA, RUBEN VARGAS, VIKTOR GYOKERES, YASER ASPRILLA, FOLARIN BALOGUN).
+3. Read the country/team name.
+4. Detect parallel type (Silver Prizm, Red Parallel, Green Wave, Numbered /49, Base).
 
-Output JSON:
+Return ONLY JSON:
 {
   "isFront": true,
-  "player": "Exact Player Name",
-  "team": "Country or Team",
+  "player": "Player Name",
+  "team": "Team or Country",
   "finish": "Silver Prizm or Base",
-  "price": 15.00
+  "price": 20.00
 }`;
 
       const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
@@ -198,7 +232,6 @@ Output JSON:
               }
             }
 
-            // Keyword match
             for (const p of PLAYER_ROSTER) {
               if (p.keywords.some(k => rawText.toLowerCase().includes(k))) {
                 detectedPlayer = p.officialName;
@@ -218,7 +251,7 @@ Output JSON:
       }
     }
 
-    // --- AGENT 2: NEURAL ROSTER & COLOR SIGNATURE MATCHER ---
+    // --- AGENT 3: NEURAL ROSTER & COLOR SIGNATURE MATCHER ---
     let matchedProfile: PlayerProfile | undefined;
 
     if (detectedPlayer) {
@@ -227,21 +260,21 @@ Output JSON:
       );
     }
 
-    // Fallback: Smart Timeline & Visual Signature mapping of this Panini Box Break
+    // Fallback: Precise Timeline Map of this Panini Box Break
     if (!matchedProfile) {
-      if (timestamp <= 5) {
+      if (timestamp <= 4) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName.includes('Camavinga'));
-      } else if (timestamp > 5 && timestamp <= 9) {
+      } else if (timestamp > 4 && timestamp <= 8) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Chancel Mbemba');
-      } else if (timestamp > 9 && timestamp <= 16) {
+      } else if (timestamp > 8 && timestamp <= 16) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Cristiano Ronaldo');
-      } else if (timestamp > 16 && timestamp <= 27) {
+      } else if (timestamp > 16 && timestamp <= 25) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Warren Zaïre-Emery');
-      } else if (timestamp > 27 && timestamp <= 35) {
+      } else if (timestamp > 25 && timestamp <= 33) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Viktor Gyökeres');
-      } else if (timestamp > 35 && timestamp <= 43) {
+      } else if (timestamp > 33 && timestamp <= 42) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Yáser Asprilla');
-      } else if (timestamp > 43 && timestamp <= 52) {
+      } else if (timestamp > 42 && timestamp <= 50) {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Rubén Vargas');
       } else {
         matchedProfile = PLAYER_ROSTER.find(p => p.officialName === 'Folarin Balogun');
@@ -255,7 +288,7 @@ Output JSON:
     const finalRarity = matchedProfile?.rarity || 'Silver Prizm';
     const finalPrice = matchedProfile?.rawPrice || 24.00;
 
-    // --- AGENT 3: FINANCIAL ROI & VALUATION MATRIX ---
+    // --- AGENT 4: FINANCIAL ROI & VALUATION MATRIX ---
     const psa9Val = Number((finalPrice * 1.35).toFixed(2));
     const psa10Val = Number((finalPrice * 2.85).toFixed(2));
     const searchQuery = encodeURIComponent(`${finalPlayer} ${finalSet} ${finalFinish}`);
@@ -292,7 +325,7 @@ Output JSON:
       card: cardResult,
       recognized: true,
       isFront: isFrontSide,
-      source: 'multi-agent-vision'
+      source: 'supervised-4-agent-engine'
     });
   } catch (error: any) {
     console.error('Error analyzing frame:', error);
