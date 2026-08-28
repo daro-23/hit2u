@@ -5,16 +5,15 @@ import { UniversalCard, CardCategory, CardRarity, CardFinish } from '@/types/pok
 // MULTI-AGENT SPORTS & TCG VISION ARCHITECTURE
 // ==========================================
 
-// Catalog of known soccer and sports superstars for instant high-confidence matching
 const SOCCER_PLAYER_DATABASE = [
   { names: ['cristiano ronaldo', 'ronaldo', 'cr7'], official: 'Cristiano Ronaldo', team: 'Portugal', set: 'Panini Prizm FIFA World Cup', finish: 'Silver Prizm', price: 28.00 },
   { names: ['chancel mbemba', 'mbemba'], official: 'Chancel Mbemba', team: 'DR Congo', set: 'Panini Prizm FIFA World Cup', finish: 'Base Card', price: 2.50 },
   { names: ['ruben vargas', 'vargas'], official: 'Rubén Vargas', team: 'Switzerland', set: 'Panini Prizm FIFA World Cup', finish: 'Base Card', price: 4.00 },
-  { names: ['warren zaire-emery', 'zaire-emery', 'zaire emery', 'zaïre-emery'], official: 'Warren Zaïre-Emery', team: 'France', set: 'Panini Prizm FIFA World Cup', finish: 'Silver Prizm', price: 14.00 },
+  { names: ['warren zaire-emery', 'zaire-emery', 'zaire emery', 'zaïre-emery', 'emery'], official: 'Warren Zaïre-Emery', team: 'France', set: 'Panini Prizm FIFA World Cup', finish: 'Red Prizm Parallel', price: 18.00 },
   { names: ['eduardo camavinga', 'camavinga'], official: 'Eduardo Camavinga', team: 'France', set: 'Panini Prizm FIFA World Cup', finish: 'Silver Prizm', price: 16.00 },
   { names: ['alexander isak', 'isak'], official: 'Alexander Isak', team: 'Sweden', set: 'Panini Prizm FIFA World Cup', finish: 'Silver Prizm', price: 14.00 },
-  { names: ['yaser asprilla', 'yáser asprilla', 'asprilla'], official: 'Yáser Asprilla', team: 'Colombia', set: 'Panini Prizm FIFA World Cup', finish: 'Base Card', price: 6.50 },
-  { names: ['folarin balogun', 'balogun'], official: 'Folarin Balogun', team: 'USMNT / AS Monaco', set: 'Panini Prizm FIFA World Cup - Scorers Club', finish: 'Numbered /49', price: 45.00 },
+  { names: ['yaser asprilla', 'yáser asprilla', 'asprilla'], official: 'Yáser Asprilla', team: 'Colombia', set: 'Panini Prizm FIFA World Cup', finish: 'Green Wave Prizm', price: 9.50 },
+  { names: ['folarin balogun', 'balogun'], official: 'Folarin Balogun', team: 'USMNT / AS Monaco', set: 'Panini Prizm FIFA World Cup - Scorers Club', finish: 'Numbered 43/49', price: 45.00 },
   { names: ['christian pulisic', 'pulisic'], official: 'Christian Pulisic', team: 'USMNT / AC Milan', set: 'Panini Prizm FIFA World Cup', finish: 'Silver Prizm', price: 24.00 },
   { names: ['weston mckennie', 'mckennie'], official: 'Weston McKennie', team: 'USMNT / Juventus', set: 'Panini Prizm FIFA World Cup', finish: 'Base Card', price: 4.50 },
   { names: ['timothy weah', 'weah'], official: 'Timothy Weah', team: 'USMNT / Juventus', set: 'Panini Prizm FIFA World Cup', finish: 'Refractor', price: 8.00 },
@@ -25,19 +24,25 @@ const SOCCER_PLAYER_DATABASE = [
 ];
 
 export async function POST(req: NextRequest) {
+  let aiStatusMessage = 'Sin procesar';
+
   try {
     const body = await req.json();
     const { imageBase64, timestamp = 0 } = body;
 
-    const apiKey =
+    // Sanitize API key from environment (remove any trailing spaces or accidental quotes)
+    const rawKey =
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
       process.env.GOOGLE_GENAI_API_KEY ||
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+      '';
+
+    const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
     let recognizedPlayer = '';
     let recognizedTeam = '';
-    let recognizedSet = 'Panini Prizm Soccer';
+    let recognizedSet = 'Panini Prizm FIFA World Cup';
     let recognizedFinish = 'Base Card';
     let recognizedPrice = 8.00;
 
@@ -45,28 +50,28 @@ export async function POST(req: NextRequest) {
     if (apiKey && imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-      const promptText = `Look at the sports card shown in this image. Read the player name printed on the bottom banner in all-caps (e.g. CRISTIANO RONALDO, CHANCEL MBEMBA, WARREN ZAIRE-EMERY, ALEXANDER ISAK, EDUARDO CAMAVINGA, YASER ASPRILLA, RUBEN VARGAS).
-Also read the country/team name.
+      const promptText = `You are an expert sports card authenticator. Look at the trading card in this image.
+Read the player name printed on the bottom banner in all-caps (e.g. CRISTIANO RONALDO, CHANCEL MBEMBA, WARREN ZAIRE-EMERY, ALEXANDER ISAK, EDUARDO CAMAVINGA, YASER ASPRILLA, RUBEN VARGAS).
+Read the country/team name.
 
-Output JSON:
+Output in valid JSON:
 {
-  "player": "Exact Player Name",
+  "player": "Player Name",
   "team": "Country or Team",
+  "set": "Panini Prizm",
   "finish": "Silver Prizm or Base",
   "price": 15.00
 }`;
 
-      const modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-2.0-flash',
-        'gemini-1.5-pro'
+      const endpointsToTry = [
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`
       ];
 
-      for (const model of modelsToTry) {
+      for (const endpoint of endpointsToTry) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -100,32 +105,39 @@ Output JSON:
 
             if (start !== -1 && end !== -1) {
               const parsed = JSON.parse(jsonCleaned.substring(start, end + 1));
-              if (parsed.player && !parsed.player.includes('Player Name')) {
+              if (parsed.player && !parsed.player.toLowerCase().includes('player name')) {
                 recognizedPlayer = parsed.player;
                 recognizedTeam = parsed.team || '';
                 recognizedFinish = parsed.finish || 'Base Card';
                 recognizedPrice = Number(parsed.price) || 10.00;
+                aiStatusMessage = `Reconocido por Gemini: ${recognizedPlayer}`;
                 break;
               }
-            } else {
-              // Direct text search in AI response if JSON didn't wrap cleanly
-              for (const p of SOCCER_PLAYER_DATABASE) {
-                if (p.names.some(n => rawText.toLowerCase().includes(n))) {
-                  recognizedPlayer = p.official;
-                  recognizedTeam = p.team;
-                  recognizedSet = p.set;
-                  recognizedFinish = p.finish;
-                  recognizedPrice = p.price;
-                  break;
-                }
-              }
-              if (recognizedPlayer) break;
             }
+
+            // Fallback string matching against roster if JSON was incomplete
+            for (const p of SOCCER_PLAYER_DATABASE) {
+              if (p.names.some(n => rawText.toLowerCase().includes(n))) {
+                recognizedPlayer = p.official;
+                recognizedTeam = p.team;
+                recognizedSet = p.set;
+                recognizedFinish = p.finish;
+                recognizedPrice = p.price;
+                aiStatusMessage = `Detectado en texto por Gemini: ${recognizedPlayer}`;
+                break;
+              }
+            }
+            if (recognizedPlayer) break;
+          } else {
+            const errText = await res.text();
+            aiStatusMessage = `Google API Error (${res.status}): ${errText.substring(0, 100)}`;
           }
-        } catch (err) {
-          console.warn(`Model ${model} error:`, err);
+        } catch (callErr: any) {
+          aiStatusMessage = `Excepción al llamar a Gemini: ${callErr?.message || callErr}`;
         }
       }
+    } else {
+      aiStatusMessage = apiKey ? 'Falta imagen' : 'Falta GEMINI_API_KEY en Vercel';
     }
 
     // --- AGENT 2: CATALOG & ROSTER NORMALIZATION SPECIALIST ---
@@ -147,7 +159,6 @@ Output JSON:
         finalPrice = match.price;
       }
     } else {
-      // Fallback timestamp marker
       finalPlayer = `Carta Panini Prizm #${Math.floor(timestamp)}s`;
       finalTeam = 'FIFA World Cup';
     }
@@ -189,6 +200,7 @@ Output JSON:
       success: true,
       card: cardResult,
       recognized: Boolean(recognizedPlayer),
+      aiStatus: aiStatusMessage,
       source: recognizedPlayer ? 'multi-agent-vision' : 'snapshot'
     });
   } catch (error: any) {

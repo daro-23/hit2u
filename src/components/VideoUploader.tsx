@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders, Eye } from 'lucide-react';
+import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
@@ -11,13 +11,12 @@ interface VideoUploaderProps {
 }
 
 // Fast Image Sharpness / Edge Gradient Variance Algorithm
-// Measures high-frequency pixel transitions: Sharp text = High Score, Motion Blur = Low Score
 function calculateSharpness(ctx: CanvasRenderingContext2D, width: number, height: number): number {
   try {
     const imgData = ctx.getImageData(0, 0, width, height);
     const data = imgData.data;
     let score = 0;
-    const step = 4; // Fast step sampling
+    const step = 4;
     for (let y = 1; y < height - 1; y += step) {
       for (let x = 1; x < width - 1; x += step) {
         const idx = (y * width + x) * 4;
@@ -70,7 +69,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const processUserVideo = async (file: File) => {
     setIsProcessing(true);
     setProgressPercent(2);
-    setProcessingStatus('Iniciando detector de máxima nitidez y enfoque...');
+    setProcessingStatus('Iniciando detector de máxima nitidez y agentes de visión...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -81,7 +80,6 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     video.onloadedmetadata = async () => {
       const duration = video.duration || 30;
 
-      // Smart sampling step
       let step = 3.6;
       if (scanSpeed === 'fast') step = 5.2;
       if (scanSpeed === 'detailed') step = 2.4;
@@ -91,7 +89,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         baseSampleTimes.push(Number(t.toFixed(1)));
       }
 
-      setProcessingStatus(`Buscando los momentos más nítidos y sin movimiento de ${baseSampleTimes.length} cartas...`);
+      setProcessingStatus(`Analizando ${baseSampleTimes.length} cartas a lo largo del video con agentes de visión...`);
 
       const newSession: OpeningSession = {
         id: `user-upload-${Date.now()}`,
@@ -113,10 +111,8 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         const baseTime = baseSampleTimes[i];
         const currentPct = Math.round(((i + 1) / baseSampleTimes.length) * 100);
         setProgressPercent(currentPct);
-        setProcessingStatus(`Enfocando carta ${i + 1} de ${baseSampleTimes.length} (${Math.floor(baseTime)}s / ${Math.round(duration)}s) — Seleccionando fotograma más claro...`);
 
         try {
-          // Candidate micro-offsets around baseTime to find the moment the hand is still
           const microOffsets = [0, 0.4, 0.8, 1.2];
           let bestBase64 = '';
           let bestSharpness = -1;
@@ -130,7 +126,6 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
               video.onseeked = r;
             });
 
-            // Wait 120ms for decoder to finish rendering uncompressed frame
             await new Promise(r => setTimeout(r, 120));
 
             const origW = video.videoWidth || 640;
@@ -146,7 +141,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
               const sharpness = calculateSharpness(ctx, targetW, targetH);
               if (sharpness > bestSharpness) {
                 bestSharpness = sharpness;
-                bestBase64 = canvas.toDataURL('image/jpeg', 0.88);
+                bestBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 bestTime = candidateTime;
               }
             }
@@ -168,6 +163,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                 const card = data.card as UniversalCard;
                 foundCards.push(card);
                 onCardDetected(card);
+                setProcessingStatus(`Carta ${i + 1} de ${baseSampleTimes.length}: ${card.name} (\${card.prices.raw.toFixed(2)})`);
               }
             }
           }
@@ -234,12 +230,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? 'Detector de Máxima Nitidez & Escaneo OCR...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
+              {isProcessing ? 'Procesando Video con Agentes de Visión & Valuación...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
             <p className="text-sm text-slate-400 max-w-lg mx-auto">
               {isProcessing
                 ? processingStatus
-                : 'Arrastra y suelta tu video (MP4, MOV). El detector inteligente evalúa ráfagas de fotogramas, descarta el movimiento borroso y elige el momento donde la carta está 100% quieta y enfocada.'}
+                : 'Arrastra y suelta tu video (MP4, MOV). Los agentes de visión evaluarán cada carta nítida, leyendo nombres de jugadores, equipos, marcas y precios en vivo.'}
             </p>
           </div>
 
