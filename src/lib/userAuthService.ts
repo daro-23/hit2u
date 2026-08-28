@@ -42,6 +42,7 @@ export const UserAuthService = {
       avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
       createdAt: new Date().toISOString(),
       savedSessions: [],
+      favoriteCards: [],
       portfolioCards: []
     };
 
@@ -85,12 +86,13 @@ export const UserAuthService = {
     }
 
     // Add cards to portfolio (deduplicated by id)
+    if (!current.portfolioCards) current.portfolioCards = [];
     session.cards.forEach(card => {
-      const cardIdx = current.portfolioCards.findIndex(c => c.id === card.id);
+      const cardIdx = (current.portfolioCards || []).findIndex(c => c.id === card.id);
       if (cardIdx >= 0) {
-        current.portfolioCards[cardIdx] = card;
+        current.portfolioCards![cardIdx] = card;
       } else {
-        current.portfolioCards.unshift(card);
+        current.portfolioCards!.unshift(card);
       }
     });
 
@@ -113,7 +115,7 @@ export const UserAuthService = {
     let updatedCard: UniversalCard | null = null;
 
     // Update in portfolio
-    current.portfolioCards = current.portfolioCards.map(c => {
+    current.portfolioCards = (current.portfolioCards || []).map(c => {
       if (c.id === cardId) {
         updatedCard = { ...c, ...updates };
         return updatedCard;

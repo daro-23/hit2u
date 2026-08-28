@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
+import { UploadCloud, Sparkles, Play, Loader2, ArrowRight, Sliders, CheckCircle2 } from 'lucide-react';
 import { DEMO_SESSIONS } from '@/data/demoSessions';
 import { OpeningSession, UniversalCard } from '@/types/pokemon';
 
@@ -30,19 +30,6 @@ function getFrameClarity(ctx: CanvasRenderingContext2D, width: number, height: n
   } catch {
     return 1;
   }
-}
-
-// Simple perceptual difference between consecutive frames to detect card changes
-function calculateFrameDifference(dataA: ImageData, dataB: ImageData): number {
-  const a = dataA.data;
-  const b = dataB.data;
-  let diff = 0;
-  const len = Math.min(a.length, b.length);
-  const step = 16;
-  for (let i = 0; i < len; i += step) {
-    diff += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
-  }
-  return diff / (len / step);
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
@@ -84,7 +71,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setIsProcessing(true);
     setCurrentPhase('extracting');
     setProgressPercent(2);
-    setProcessingStatus('Paso 1/3: Escaneando video en cámara lenta para capturar fotogramas nítidos...');
+    setProcessingStatus('Paso 1/3: Escaneo en cámara lenta con ráfagas anti-blur...');
 
     const videoUrl = URL.createObjectURL(file);
     const video = document.createElement('video');
@@ -95,33 +82,36 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     video.onloadedmetadata = async () => {
       const duration = video.duration || 30;
 
-      // Slower, higher-precision micro-sampling step (every 2.2s - 3.2s)
-      let step = 2.8;
-      if (scanSpeed === 'fast') step = 4.2;
-      if (scanSpeed === 'detailed') step = 1.8;
+      // Key sample moments spaced out to catch each unique card reveal (every 4.5s)
+      let step = 4.2;
+      if (scanSpeed === 'fast') step = 6.0;
+      if (scanSpeed === 'detailed') step = 3.0;
 
       const sampleTimePoints: number[] = [];
-      for (let t = 0.8; t < duration - 0.4; t += step) {
+      for (let t = 1.2; t < duration - 0.4; t += step) {
         sampleTimePoints.push(Number(t.toFixed(1)));
       }
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
-      const rawCandidates: { base64: string; timestamp: number; clarity: number; imgData: ImageData }[] = [];
+      const uniqueFoundCards: UniversalCard[] = [];
+      const seenPlayerNames = new Set<string>();
 
       // ========================================================
-      // FASE 1: EXTRACCIÓN LENTA & RÁFAGA ANTI-BLUR
+      // FASE 1 & 2: RÁFAGA ANTI-BLUR + EXTRACCIÓN Y ANÁLISIS
       // ========================================================
       for (let i = 0; i < sampleTimePoints.length; i++) {
         const baseTime = sampleTimePoints[i];
-        const pct = Math.round(((i + 1) / sampleTimePoints.length) * 45); // 0% - 45%
+        const pct = Math.round(((i + 1) / sampleTimePoints.length) * 100);
         setProgressPercent(pct);
-        setProcessingStatus(`Fase 1/3: Ráfaga en ${Math.floor(baseTime)}s — Buscando congelamiento de carta...`);
+        setProcessingStatus(`Analizando Momento ${i + 1} de ${sampleTimePoints.length} (${Math.floor(baseTime)}s)...`);
 
         try {
-          const microBurst = [0, 0.35, 0.7, 1.05];
-          let bestCandidate = { base64: '', timestamp: baseTime, clarity: -1, imgData: null as any };
+          // 4-frame micro-burst to ensure we catch the still card
+          const microBurst = [0, 0.4, 0.8, 1.2];
+          let bestBase64 = '';
+          let bestClarity = -1;
+          let bestTime = baseTime;
 
           for (const offset of microBurst) {
             const candidateTime = Math.min(baseTime + offset, duration - 0.2);
@@ -130,7 +120,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             await new Promise((r) => {
               video.onseeked = r;
             });
-            await new Promise(r => setTimeout(r, 140)); // Slower decoder stabilization
+            await new Promise(r => setTimeout(r, 140));
 
             const origW = video.videoWidth || 640;
             const origH = video.videoHeight || 1138;
@@ -143,86 +133,42 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
             if (ctx) {
               const clarity = getFrameClarity(ctx, targetW, targetH);
-              if (clarity > bestCandidate.clarity) {
-                const imgData = ctx.getImageData(0, 0, targetW, targetH);
-                bestCandidate = {
-                  base64: canvas.toDataURL('image/jpeg', 0.88),
-                  timestamp: candidateTime,
-                  clarity,
-                  imgData
-                };
+              if (clarity > bestClarity) {
+                bestClarity = clarity;
+                bestBase64 = canvas.toDataURL('image/jpeg', 0.88);
+                bestTime = candidateTime;
               }
             }
           }
 
-          if (bestCandidate.base64 && bestCandidate.imgData) {
-            rawCandidates.push(bestCandidate);
-          }
-        } catch (err) {
-          console.error('Error in burst capture:', err);
-        }
-      }
+          if (bestBase64) {
+            const response = await fetch('/api/analyze-frame', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: bestBase64,
+                timestamp: Number(bestTime.toFixed(1))
+              })
+            });
 
-      // ========================================================
-      // FASE 2: DESDUPLICACIÓN & MEJORA DE IMAGEN IA
-      // ========================================================
-      setCurrentPhase('enhancing');
-      setProcessingStatus('Paso 2/3: Desduplicando cartas y mejorando contraste de banners con IA...');
-      
-      const uniqueCardsToAnalyze: typeof rawCandidates = [];
-      for (let i = 0; i < rawCandidates.length; i++) {
-        const current = rawCandidates[i];
-        if (i === 0) {
-          uniqueCardsToAnalyze.push(current);
-          continue;
-        }
+            if (response.ok) {
+              const data = await response.json();
+              if (data.card) {
+                const card = data.card as UniversalCard;
+                const normalizedPlayer = (card.playerOrCharacter || card.name).toLowerCase().trim();
 
-        const prev = uniqueCardsToAnalyze[uniqueCardsToAnalyze.length - 1];
-        const diff = calculateFrameDifference(current.imgData, prev.imgData);
-
-        // If frame is significantly different (a new card was turned), keep it
-        // Or if time gap is > 4.5 seconds, keep it
-        if (diff > 18 || (current.timestamp - prev.timestamp) >= 4.5) {
-          uniqueCardsToAnalyze.push(current);
-        } else if (current.clarity > prev.clarity) {
-          // If it's the same card but sharper, replace with the sharper hero frame!
-          uniqueCardsToAnalyze[uniqueCardsToAnalyze.length - 1] = current;
-        }
-      }
-
-      // ========================================================
-      // FASE 3: ANÁLISIS MULTI-AGENTE & EXTRACCIÓN DE DATOS
-      // ========================================================
-      setCurrentPhase('analyzing');
-      const foundCards: UniversalCard[] = [];
-
-      for (let i = 0; i < uniqueCardsToAnalyze.length; i++) {
-        const item = uniqueCardsToAnalyze[i];
-        const pct = 45 + Math.round(((i + 1) / uniqueCardsToAnalyze.length) * 55); // 45% - 100%
-        setProgressPercent(pct);
-        setProcessingStatus(`Paso 3/3: Analizando Carta ${i + 1} de ${uniqueCardsToAnalyze.length} (${Math.floor(item.timestamp)}s)...`);
-
-        try {
-          const response = await fetch('/api/analyze-frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              imageBase64: item.base64,
-              timestamp: Number(item.timestamp.toFixed(1))
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.card) {
-              const card = data.card as UniversalCard;
-              foundCards.push(card);
-              onCardDetected(card);
-              setProcessingStatus(`✓ Carta ${i + 1}: ${card.name} — \${card.prices.raw.toFixed(2)}`);
+                // STRICT DEDUPLICATION: If this player card is already added, do not duplicate!
+                if (!seenPlayerNames.has(normalizedPlayer)) {
+                  seenPlayerNames.add(normalizedPlayer);
+                  uniqueFoundCards.push(card);
+                  onCardDetected(card);
+                  setProcessingStatus(`✓ Detectada: ${card.name} — \${card.prices.raw.toFixed(2)}`);
+                }
+              }
             }
           }
         } catch (err) {
-          console.error('Error analyzing card item:', err);
+          console.error('Error in card analysis:', err);
         }
       }
 
@@ -232,10 +178,10 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         category: 'all',
         packCostUsd: 25.00,
         videoDurationSeconds: duration,
-        totalCardsFound: foundCards.length,
-        totalValueUsd: foundCards.reduce((acc, c) => acc + c.prices.raw, 0),
-        topHitCard: [...foundCards].sort((a, b) => b.prices.raw - a.prices.raw)[0],
-        cards: foundCards,
+        totalCardsFound: uniqueFoundCards.length,
+        totalValueUsd: uniqueFoundCards.reduce((acc, c) => acc + c.prices.raw, 0),
+        topHitCard: [...uniqueFoundCards].sort((a, b) => b.prices.raw - a.prices.raw)[0],
+        cards: uniqueFoundCards,
         createdAt: new Date().toISOString()
       };
 
@@ -293,42 +239,18 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-              {isProcessing ? 'Procesamiento en 3 Fases con Agentes de Visión IA...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
+              {isProcessing ? 'Procesando Video con Agentes de Visión & Desduplicación...' : 'Sube tu video de apertura de cartas (Pack Opening / Box Break)'}
             </h3>
             <p className="text-sm text-slate-400 max-w-lg mx-auto">
               {isProcessing
                 ? processingStatus
-                : 'Arrastra y suelta tu video (MP4, MOV). El sistema extrae fotogramas nítidos en cámara lenta, elimina duplicados y analiza cada carta individualmente.'}
+                : 'Arrastra y suelta tu video (MP4, MOV). El sistema extrae fotogramas nítidos en cámara lenta, elimina cartas repetidas y reconoce jugadores con precios de mercado en tiempo real.'}
             </p>
           </div>
 
-          {/* 3-Phase Progress Indicator */}
+          {/* Progress bar when processing */}
           {isProcessing && (
-            <div className="w-full max-w-lg space-y-3 pt-2">
-              <div className="grid grid-cols-3 gap-2 text-[10px] font-bold uppercase tracking-wider">
-                <div className={`rounded-lg p-1.5 border transition-all ${
-                  currentPhase === 'extracting'
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow'
-                    : 'bg-slate-800/60 border-slate-700 text-slate-400'
-                }`}>
-                  1. Ráfaga Anti-Blur
-                </div>
-                <div className={`rounded-lg p-1.5 border transition-all ${
-                  currentPhase === 'enhancing'
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow'
-                    : 'bg-slate-800/60 border-slate-700 text-slate-400'
-                }`}>
-                  2. Desduplicación IA
-                </div>
-                <div className={`rounded-lg p-1.5 border transition-all ${
-                  currentPhase === 'analyzing'
-                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow animate-pulse'
-                    : 'bg-slate-800/60 border-slate-700 text-slate-400'
-                }`}>
-                  3. Extracción & OCR
-                </div>
-              </div>
-
+            <div className="w-full max-w-lg space-y-2 pt-2">
               <div className="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden border border-slate-700">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-500 transition-all duration-300"
@@ -360,7 +282,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Rápido
+                Rápido (~cada 6.0s)
               </button>
               <button
                 type="button"
@@ -371,7 +293,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Estándar (Cámara Lenta + Desduplicación)
+                Estándar (~cada 4.2s • Anti-Duplicados)
               </button>
               <button
                 type="button"
@@ -382,7 +304,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                     : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Detallado Máximo
+                Detallado (~cada 3.0s)
               </button>
             </div>
           )}

@@ -40,73 +40,53 @@ export type CardFinish =
   | 'On-Card Auto'
   | 'Relic Patch'
   | 'Secret Art'
-  | 'Full Art';
+  | 'Full Art'
+  | 'Base Card'
+  | 'Red Prizm Parallel'
+  | 'Green Wave Prizm';
 
 export interface CardPrices {
   raw: number;
-  psa9?: number;
-  psa10?: number;
-  bgs95?: number;
-  marketTrend24h?: number;
+  psa9: number;
+  psa10: number;
+  marketTrend24h: number;
   tcgplayerUrl?: string;
-  pricechartingUrl?: string;
   ebaySoldUrl?: string;
-  goldinUrl?: string;
+  pricechartingUrl?: string;
 }
 
 export interface UniversalCard {
   id: string;
-  category: CardCategory;
   name: string;
-  titleExtra?: string;
-  playerOrCharacter: string;
-  teamOrFranchise?: string;
+  category: CardCategory;
   setName: string;
   setSeries?: string;
-  year?: string;
   number: string;
   rarity: CardRarity;
   finish: CardFinish;
-  isRookie?: boolean;
-  isAutographed?: boolean;
-  isMemorabiliaPatch?: boolean;
-  serialNumberNumbered?: string; // e.g. "43/49", "01/10", "1/1"
-  imageUrl: string; // Active cover photo (stock art or custom)
+  playerOrCharacter?: string;
+  teamOrFranchise?: string;
+  imageUrl: string;
   hiresImageUrl?: string;
-  videoSnapshotUrl?: string; // Original frame snapshot captured from video
-  studioStockImageUrl?: string; // High-res internet promotional image
-  galleryImages?: string[]; // Multiple photos for card integrity (Front, Back, Corners, Surface)
-  notes?: string;
-  prices: CardPrices;
+  studioStockImageUrl?: string;
+  videoSnapshotUrl?: string;
   detectedTimestamp: number;
   confidenceScore: number;
   isHit: boolean;
   isGodHit?: boolean;
-  artist?: string;
-  hp?: string;
-  types?: string[];
+  isRookie?: boolean;
+  isAutographed?: boolean;
+  serialNumberNumbered?: string;
+  galleryImages?: string[];
+  notes?: string;
+  prices: CardPrices;
+  extraPhotos?: string[];
 }
 
-export interface CollectionSet {
-  id: string;
-  category: CardCategory;
-  name: string;
-  publisher: string;
-  year: string;
-  iconName?: string;
-  bannerGradient: string;
-  totalCards: number;
-  avgPackPriceUsd: number;
-  estimatedSetRoi: string;
-  topChaseCard: string;
-  topChaseValueUsd: number;
-  chaseCardImage: string;
-  tags: string[];
-}
+export type PokemonCard = UniversalCard;
 
 export interface OpeningSession {
   id: string;
-  userId?: string;
   title: string;
   category: CardCategory;
   packCostUsd: number;
@@ -118,15 +98,36 @@ export interface OpeningSession {
   createdAt: string;
 }
 
+export interface CollectionSet {
+  id: string;
+  name: string;
+  category: CardCategory;
+  publisher?: string;
+  year?: number | string;
+  releaseYear?: number;
+  totalCards: number;
+  coverImageUrl?: string;
+  topCardName?: string;
+  topCardValueUsd?: number;
+  topChaseCard?: string;
+  topChaseValueUsd?: number;
+  chaseCardImage?: string;
+  avgPackPriceUsd?: number;
+  estimatedSetRoi?: string;
+  tags?: string[];
+  bannerGradient?: string;
+  isTrending?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
   name: string;
-  tier: 'free' | 'pro' | 'vip';
   avatarUrl?: string;
-  createdAt: string;
+  plan?: 'free' | 'pro' | 'vip';
+  tier?: 'Free Tier' | 'PRO Collector' | 'VIP Vault' | 'free' | 'pro' | 'vip';
   savedSessions: OpeningSession[];
-  portfolioCards: UniversalCard[];
+  favoriteCards: UniversalCard[];
+  portfolioCards?: UniversalCard[];
+  createdAt: string;
 }
-
-export type PokemonCard = UniversalCard;

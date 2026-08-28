@@ -63,7 +63,7 @@ export const TrendingSetsSection: React.FC<TrendingSetsProps> = ({
 
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {set.tags.map((tag) => (
+                {(set.tags || []).map((tag) => (
                   <span
                     key={tag}
                     className="rounded bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-400 border border-slate-800"
@@ -82,13 +82,13 @@ export const TrendingSetsSection: React.FC<TrendingSetsProps> = ({
                     <Sparkles className="h-3 w-3" /> TOP CHASE GRAIL
                   </span>
                   <p className="truncate text-xs font-bold text-slate-200 mt-0.5">
-                    {set.topChaseCard}
+                    {set.topChaseCard || set.topCardName || 'Hit Secreto'}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[10px] text-slate-400 block">Est. Market</span>
                   <span className="text-sm font-black text-amber-400">
-                    \${set.topChaseValueUsd >= 1000 ? `${(set.topChaseValueUsd / 1000).toFixed(1)}k` : set.topChaseValueUsd.toFixed(0)}
+                    \${(set.topChaseValueUsd || set.topCardValueUsd || 100) >= 1000 ? `${((set.topChaseValueUsd || set.topCardValueUsd || 100) / 1000).toFixed(1)}k` : (set.topChaseValueUsd || set.topCardValueUsd || 100).toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -96,7 +96,7 @@ export const TrendingSetsSection: React.FC<TrendingSetsProps> = ({
 
             {/* Bottom bar */}
             <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-xs text-slate-400">
-              <span>Costo Sobre: <strong className="text-white">\${set.avgPackPriceUsd.toFixed(2)}</strong></span>
+              <span>Costo Sobre: <strong className="text-white">\${(set.avgPackPriceUsd || 15).toFixed(2)}</strong></span>
               <span className="flex items-center gap-1 text-amber-400 font-bold group-hover:translate-x-0.5 transition-transform text-[11px]">
                 Escanear este Set <ArrowRight className="h-3 w-3" />
               </span>
